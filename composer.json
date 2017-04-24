@@ -1,0 +1,19 @@
+{
+    "description": "Replicate Neos node structure and content to other content dimensions",
+    "type": "neos-package",
+    "name": "punktde/nodereplicator",
+    "require": {
+        "neos/neos": ">3.0",
+        "neos/content-repository": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "PunktDe\\NodeReplicator\\": "Classes/"
+        }
+    },
+    "extra": {
+        "neos": {
+            "package-key": "PunktDe.NodeReplicator"
+        }
+    }
+}
