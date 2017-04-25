@@ -27,16 +27,18 @@ This package provides an additional option for the node type configurations of t
     'Neos.Neos:Content': true
   ...
   
-  replication:
-    structure: true
-    content: true
+  options:
+    replication:
+      structure: true
+      content: true
     
 'Vendor.Package:AddressCategory':
   superTypes:
     'Neos.Neos:Content': true
   ...
   
-  replication:
-    structure: true
+  options:  
+    replication:
+      structure: true
     
 ```

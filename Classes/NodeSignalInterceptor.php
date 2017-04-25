@@ -27,7 +27,7 @@ class NodeSignalInterceptor
      */
     public static function nodeUpdated(NodeInterface $node)
     {
-        if (self::hasReplicationConfiguration($node)) {
+        if (self::hasReplicationConfiguration($node) && self::nodeContentUpdateEnabled($node)) {
             self::getNodeReplicator()->similarizeNodeVariants($node);
         }
     }
@@ -37,7 +37,7 @@ class NodeSignalInterceptor
      */
     public function nodeRemoved(NodeInterface $node)
     {
-        if (self::hasReplicationConfiguration($node)) {
+        if (self::hasReplicationConfiguration($node) && self::nodeReplicationEnabled($node)) {
             self::getNodeReplicator()->removeNodeVariants($node);
         }
     }
@@ -48,15 +48,25 @@ class NodeSignalInterceptor
      */
     protected static function hasReplicationConfiguration(NodeInterface $node)
     {
-        return $node->getNodeType()->hasConfiguration('replication');
+        return $node->getNodeType()->hasConfiguration('options.replication');
     }
 
     /**
      * @param NodeInterface $node
      * @return bool
      */
-    protected static function nodeReplicationEnabled(NodeInterface $node) {
-        return $node->getNodeType()->hasConfiguration('replication.structure') && $node->getNodeType()->getConfiguration('replication.structure');
+    protected static function nodeReplicationEnabled(NodeInterface $node)
+    {
+        return $node->getNodeType()->hasConfiguration('options.replication.structure') && $node->getNodeType()->getConfiguration('options.replication.structure');
+    }
+
+    /**
+     * @param NodeInterface $node
+     * @return bool
+     */
+    protected static function nodeContentUpdateEnabled(NodeInterface $node)
+    {
+        return $node->getNodeType()->hasConfiguration('options.replication.content') && $node->getNodeType()->getConfiguration('options.replication.content');
     }
 
     /**
