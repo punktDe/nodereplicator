@@ -61,9 +61,10 @@ class NodeReplicator
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
             $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
-            $nodeVariant->remove();
-
-            $this->logReplicationAction($nodeVariant, 'Node variant was deleted.');
+            if ($nodeVariant !== null) {
+                $nodeVariant->remove();
+                $this->logReplicationAction($nodeVariant, 'Node variant was deleted.');
+            }
         }
     }
 
