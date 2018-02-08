@@ -14,10 +14,11 @@ This package provides an additional option for the node type configurations of t
 
 **Options:**
 
-| Option                | Description                                                                     |
-|-----------------------|---------------------------------------------------------------------------------|
-| replication.structure | Automatically create and remove the node in other dimensions                    |
-| replication.content   | Automatically update the content of the corresponding nodes in other dimensions |
+| Option                                  | Description                                                                     |
+|-----------------------------------------|---------------------------------------------------------------------------------|
+| replication.structure                   | Automatically create and remove the node in other dimensions                    |
+| replication.content                     | Automatically update the content of the corresponding nodes in other dimensions |
+| replication.updateEmptyPropertiesOnly   | When updating content, only update empty properties                             |
 
 **Example Configuration:**
 
@@ -40,5 +41,16 @@ This package provides an additional option for the node type configurations of t
   options:  
     replication:
       structure: true
+      
+'Vendor.Package:AnotherAddressCategory':
+  superTypes:
+    'Neos.Neos:Content': true
+  ...
+  
+  options:  
+    replication:
+      structure: true
+      content: true
+      updateEmptyPropertiesOnly: true
     
 ```
