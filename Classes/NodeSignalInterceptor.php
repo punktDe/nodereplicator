@@ -29,7 +29,7 @@ class NodeSignalInterceptor
     {
         if (self::hasReplicationConfiguration($node) && self::nodeContentUpdateEnabled($node)) {
             if (self::nodeContentUpdateOnlyEmpty($node)) {
-                self::getNodeReplicator()->similarizeProperties($node);
+                self::getNodeReplicator()->similarizePropertiesEmptyInOtherDimensions($node);
             } else {
                 self::getNodeReplicator()->similarizeNodeVariants($node);
             }
