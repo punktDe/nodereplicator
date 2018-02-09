@@ -28,7 +28,12 @@ class NodeSignalInterceptor
     public static function nodeUpdated(NodeInterface $node)
     {
         if (self::hasReplicationConfiguration($node) && self::nodeContentUpdateEnabled($node)) {
-            self::getNodeReplicator()->similarizeNodeVariants($node);
+            if (self::nodeContentUpdateOnlyEmpty($node)) {
+                self::getNodeReplicator()->similarizeProperties($node);
+            } else {
+                self::getNodeReplicator()->similarizeNodeVariants($node);
+            }
+
         }
     }
 
@@ -67,6 +72,16 @@ class NodeSignalInterceptor
     protected static function nodeContentUpdateEnabled(NodeInterface $node)
     {
         return $node->getNodeType()->hasConfiguration('options.replication.content') && $node->getNodeType()->getConfiguration('options.replication.content');
+    }
+
+    /**
+     * @param NodeInterface $node
+     * @return bool
+     */
+    protected static function nodeContentUpdateOnlyEmpty(NodeInterface $node)
+    {
+        return $node->getNodeType()->hasConfiguration('options.replication.updateEmptyPropertiesOnly')
+            && $node->getNodeType()->getConfiguration('options.replication.updateEmptyPropertiesOnly');
     }
 
     /**

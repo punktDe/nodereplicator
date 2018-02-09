@@ -91,4 +91,23 @@ class NodeReplicator
 
         $this->logger->log(sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message));
     }
+
+    /**
+     * @param NodeInterface $node
+     */
+    public function similarizePropertiesEmptyInOtherDimensions(NodeInterface $node)
+    {
+        /** @var NodeInterface $parentVariant */
+        foreach ($this->getParentVariants($node) as $parentVariant) {
+            $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
+
+            foreach ($node->getNodeData()->getProperties() as $propertyName => $propertyValue) {
+                if (empty($nodeVariant->getProperty($propertyName))) {
+                    $nodeVariant->setProperty($propertyName, $propertyValue);
+                }
+            }
+
+            $this->logReplicationAction($nodeVariant, 'Content of target node was updated. - only empty properties');
+        }
+    }
 }
