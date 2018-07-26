@@ -89,7 +89,7 @@ class NodeReplicator
         }
         $dimensionString = implode('|', $dimensionsAndPresets);
 
-        $this->logger->log(sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message));
+        $this->logger->log(sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message), LOG_INFO, [], 'PunktDe.NodeReplicator', get_class($this), __METHOD__);
     }
 
     /**
@@ -100,6 +100,11 @@ class NodeReplicator
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
             $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
+
+            if (!$nodeVariant) {
+                $this->logger->log(sprintf('Trying to set properties for empty node variant, skipping - original node identifier "%s"', $node->getIdentifier()), LOG_WARNING, [], 'PunktDe.NodeReplicator', get_class($this), __METHOD__);
+                break;
+            }
 
             foreach ($node->getNodeData()->getProperties() as $propertyName => $propertyValue) {
                 if (empty($nodeVariant->getProperty($propertyName))) {
