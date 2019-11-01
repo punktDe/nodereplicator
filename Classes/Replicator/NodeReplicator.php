@@ -1,15 +1,18 @@
 <?php
+declare(strict_types=1);
 
 namespace PunktDe\NodeReplicator\Replicator;
 
 /*
- *  (c) 2017 punkt.de GmbH - Karlsruhe, Germany - http://punkt.de
+ *  (c) 2017-2019 punkt.de GmbH - Karlsruhe, Germany - http://punkt.de
  *  All rights reserved.
  */
 
 use Neos\ContentRepository\Domain\Model\NodeInterface;
-use Neos\Flow\Log\SystemLoggerInterface;
+use Neos\ContentRepository\Exception\NodeException;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Log\Utility\LogEnvironment;
+use Psr\Log\LoggerInterface;
 
 /**
  * @Flow\Scope("singleton")
@@ -18,14 +21,14 @@ class NodeReplicator
 {
     /**
      * @Flow\Inject
-     * @var SystemLoggerInterface
+     * @var LoggerInterface
      */
     protected $logger;
 
     /**
      * @param NodeInterface $node
      */
-    public function replicateNode(NodeInterface $node)
+    public function replicateNode(NodeInterface $node): void
     {
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
@@ -42,7 +45,7 @@ class NodeReplicator
     /**
      * @param NodeInterface $node
      */
-    public function similarizeNodeVariants(NodeInterface $node)
+    public function similarizeNodeVariants(NodeInterface $node): void
     {
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
@@ -56,7 +59,7 @@ class NodeReplicator
     /**
      * @param NodeInterface $node
      */
-    public function removeNodeVariants(NodeInterface $node)
+    public function removeNodeVariants(NodeInterface $node): void
     {
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
@@ -72,16 +75,16 @@ class NodeReplicator
      * @param NodeInterface $node
      * @return array
      */
-    protected function getParentVariants(NodeInterface $node)
+    protected function getParentVariants(NodeInterface $node): array
     {
         return $node->getParent()->getOtherNodeVariants();
     }
 
     /**
      * @param NodeInterface $nodeVariant
-     * @param $message
+     * @param string $message
      */
-    protected function logReplicationAction(NodeInterface $nodeVariant, $message)
+    protected function logReplicationAction(NodeInterface $nodeVariant, string $message): void
     {
         $dimensionsAndPresets = [];
         foreach ($nodeVariant->getDimensions() as $dimension => $presets) {
@@ -89,20 +92,21 @@ class NodeReplicator
         }
         $dimensionString = implode('|', $dimensionsAndPresets);
 
-        $this->logger->log(sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message), LOG_INFO, [], 'PunktDe.NodeReplicator', get_class($this), __METHOD__);
+        $this->logger->info(sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message), LogEnvironment::fromMethodName(__METHOD__));
     }
 
     /**
      * @param NodeInterface $node
+     * @throws NodeException
      */
-    public function similarizePropertiesEmptyInOtherDimensions(NodeInterface $node)
+    public function similarizePropertiesEmptyInOtherDimensions(NodeInterface $node): void
     {
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
             $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
 
             if (!$nodeVariant) {
-                $this->logger->log(sprintf('Trying to set properties for empty node variant, skipping - original node identifier "%s"', $node->getIdentifier()), LOG_WARNING, [], 'PunktDe.NodeReplicator', get_class($this), __METHOD__);
+                $this->logger->warning(sprintf('Trying to set properties for empty node variant, skipping - original node identifier "%s"', $node->getIdentifier()), LogEnvironment::fromMethodName(__METHOD__));
                 break;
             }
 

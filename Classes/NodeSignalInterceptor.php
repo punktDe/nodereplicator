@@ -1,14 +1,16 @@
 <?php
+declare(strict_types=1);
 
 namespace PunktDe\NodeReplicator;
 
 /*
- *  (c) 2017 punkt.de GmbH - Karlsruhe, Germany - http://punkt.de
+ *  (c) 2017-2019 punkt.de GmbH - Karlsruhe, Germany - http://punkt.de
  *  All rights reserved.
  */
 
-
 use Neos\ContentRepository\Domain\Model\NodeInterface;
+use Neos\ContentRepository\Exception\NodeException;
+use PunktDe\NodeReplicator\Replicator\NodeReplicator;
 
 class NodeSignalInterceptor
 {
@@ -24,8 +26,9 @@ class NodeSignalInterceptor
 
     /**
      * @param NodeInterface $node
+     * @throws NodeException
      */
-    public static function nodeUpdated(NodeInterface $node)
+    public static function nodeUpdated(NodeInterface $node): void
     {
         if (self::hasReplicationConfiguration($node) && self::nodeContentUpdateEnabled($node)) {
             if (self::nodeContentUpdateOnlyEmpty($node)) {
@@ -40,7 +43,7 @@ class NodeSignalInterceptor
     /**
      * @param NodeInterface $node
      */
-    public function nodeRemoved(NodeInterface $node)
+    public function nodeRemoved(NodeInterface $node): void
     {
         if (self::hasReplicationConfiguration($node) && self::nodeReplicationEnabled($node)) {
             self::getNodeReplicator()->removeNodeVariants($node);
@@ -51,7 +54,7 @@ class NodeSignalInterceptor
      * @param NodeInterface $node
      * @return bool
      */
-    protected static function hasReplicationConfiguration(NodeInterface $node)
+    protected static function hasReplicationConfiguration(NodeInterface $node): bool
     {
         return $node->getNodeType()->hasConfiguration('options.replication');
     }
@@ -60,7 +63,7 @@ class NodeSignalInterceptor
      * @param NodeInterface $node
      * @return bool
      */
-    protected static function nodeReplicationEnabled(NodeInterface $node)
+    protected static function nodeReplicationEnabled(NodeInterface $node): bool
     {
         return $node->getNodeType()->hasConfiguration('options.replication.structure') && $node->getNodeType()->getConfiguration('options.replication.structure');
     }
@@ -69,7 +72,7 @@ class NodeSignalInterceptor
      * @param NodeInterface $node
      * @return bool
      */
-    protected static function nodeContentUpdateEnabled(NodeInterface $node)
+    protected static function nodeContentUpdateEnabled(NodeInterface $node): bool
     {
         return $node->getNodeType()->hasConfiguration('options.replication.content') && $node->getNodeType()->getConfiguration('options.replication.content');
     }
@@ -78,7 +81,7 @@ class NodeSignalInterceptor
      * @param NodeInterface $node
      * @return bool
      */
-    protected static function nodeContentUpdateOnlyEmpty(NodeInterface $node)
+    protected static function nodeContentUpdateOnlyEmpty(NodeInterface $node): bool
     {
         return $node->getNodeType()->hasConfiguration('options.replication.updateEmptyPropertiesOnly')
             && $node->getNodeType()->getConfiguration('options.replication.updateEmptyPropertiesOnly');
@@ -87,7 +90,7 @@ class NodeSignalInterceptor
     /**
      * @return Replicator\NodeReplicator
      */
-    protected static function getNodeReplicator()
+    protected static function getNodeReplicator(): NodeReplicator
     {
         return new Replicator\NodeReplicator();
     }

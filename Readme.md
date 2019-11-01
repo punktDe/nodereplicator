@@ -1,5 +1,7 @@
 # PunktDe NodeReplicator
 
+[![Latest Stable Version](https://poser.pugx.org/punktDe/nodereplicator/v/stable)](https://packagist.org/packages/punktDe/nodereplicator) [![Total Downloads](https://poser.pugx.org/punktDe/nodereplicator/downloads)](https://packagist.org/packages/punktDe/nodereplicator) [![License](https://poser.pugx.org/punktDe/nodereplicator/license)](https://packagist.org/packages/punktDe/nodereplicator)
+
 This package provides an additional option for the node type configurations of the automatic replication nodes of a certain type. This provides dimensions in which the parent node exists, which makes it possible to store structured data like categories in content nodes. See the next sections for details.
 
 ## The problem, this package solves
