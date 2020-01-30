@@ -50,6 +50,18 @@ class NodeReplicator
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
             $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
+
+            if(!$nodeVariant instanceof NodeInterface) {
+                $dimensionsAndPresets = [];
+                foreach ($parentVariant->getDimensions() as $dimension => $presets) {
+                    $dimensionsAndPresets[] = $dimension . ':' . implode(',', array_values($presets));
+                }
+                $dimensionString = implode('|', $dimensionsAndPresets);
+
+                $this->logger->info(sprintf('[ParentNodeIdentifier: %s, TargetDimension: %s] %s', $parentVariant->getIdentifier(), $dimensionString, 'Cannot similarize node in, as the node was not found in that dimension.'), LogEnvironment::fromMethodName(__METHOD__));
+                continue;
+            }
+
             $nodeVariant->getNodeData()->similarize($node->getNodeData());
 
             $this->logReplicationAction($nodeVariant, 'Content of target node was updated.');
