@@ -58,7 +58,7 @@ class NodeReplicator
                 }
                 $dimensionString = implode('|', $dimensionsAndPresets);
 
-                $this->logger->info(sprintf('[ParentNodeIdentifier: %s, TargetDimension: %s] %s', $parentVariant->getIdentifier(), $dimensionString, 'Cannot similarize node in, as the node was not found in that dimension.'), LogEnvironment::fromMethodName(__METHOD__));
+                $this->logger->info(sprintf('[NodeIdentifier: %s, TargetDimension: %s] Cannot similarize node, as the node was not found in the target dimension.', $node->getIdentifier(), $dimensionString), LogEnvironment::fromMethodName(__METHOD__));
                 continue;
             }
 
