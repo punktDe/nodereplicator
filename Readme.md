@@ -2,11 +2,11 @@
 
 [![Latest Stable Version](https://poser.pugx.org/punktDe/nodereplicator/v/stable)](https://packagist.org/packages/punktDe/nodereplicator) [![Total Downloads](https://poser.pugx.org/punktDe/nodereplicator/downloads)](https://packagist.org/packages/punktDe/nodereplicator) [![License](https://poser.pugx.org/punktDe/nodereplicator/license)](https://packagist.org/packages/punktDe/nodereplicator)
 
-This package provides an additional option for the node type configurations of the automatic replication nodes of a certain type. This provides dimensions in which the parent node exists, which makes it possible to store structured data like categories in content nodes. See the next sections for details.
+This package provides an additional option for the NodeType configuration to automatically update this node in other dimensions.
 
 ## The problem, this package solves
 
-**Scenario:** On a multi language page, without configured fallbacks, you want to show addresses. The addresses are content nodes. A address entry should reference a country and a category. Country and categories should be content nodes too. While the title of a category and country needs to be translated for every language, the address itself stays the same for every language.
+**Scenario:** On a multi language page, without configured fallbacks, you want to show addresses. The addresses are content nodes. An address entry should reference a country and a category. Country and categories should be content nodes too. While the title of a category and country needs to be translated for every language, the address itself stays the same for every language.
 
 **The problem:** As soon, as you translate the page which contains the content nodes from language A to language B, you are no longer able to add nodes in both languages which have the same identifier. Without fallback you would need to add an address on every language separately with the references to the corresponding nodes.
 
