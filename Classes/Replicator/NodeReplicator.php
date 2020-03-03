@@ -119,7 +119,7 @@ class NodeReplicator
 
             if (!$nodeVariant) {
                 $this->logger->warning(sprintf('Trying to set properties for empty node variant, skipping - original node identifier "%s"', $node->getIdentifier()), LogEnvironment::fromMethodName(__METHOD__));
-                break;
+                continue;
             }
 
             foreach ($node->getNodeData()->getProperties() as $propertyName => $propertyValue) {
