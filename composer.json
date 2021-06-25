@@ -2,6 +2,7 @@
     "description": "Replicate Neos node structure and content to other content dimensions",
     "type": "neos-package",
     "name": "punktde/nodereplicator",
+    "license": "MIT",
     "require": {
         "neos/neos": "^5.0 || ^7.0"
     },
