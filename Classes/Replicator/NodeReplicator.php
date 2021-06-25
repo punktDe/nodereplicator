@@ -13,6 +13,7 @@ use Neos\ContentRepository\Exception\NodeException;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Log\Utility\LogEnvironment;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 
 /**
  * @Flow\Scope("singleton")
@@ -36,8 +37,8 @@ class NodeReplicator
         foreach ($this->getParentVariants($node) as $parentVariant) {
 
             if ($parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier()) !== null) {
-                // Node already exists in target dimension
-                return;
+                $this->logReplicationAction($node, 'Node was not replicated, as it already exists in target dimension', __METHOD__, LogLevel::DEBUG);
+                continue;
             }
 
             $nodeVariant = $parentVariant->getContext()->adoptNode($node);
@@ -123,7 +124,7 @@ class NodeReplicator
      * @param string $message
      * @param string|null $loggingMethod
      */
-    protected function logReplicationAction(NodeInterface $nodeVariant, string $message, ?string $loggingMethod = null): void
+    protected function logReplicationAction(NodeInterface $nodeVariant, string $message, ?string $loggingMethod = null, string $logLevel = LogLevel::INFO): void
     {
         $dimensionsAndPresets = [];
         foreach ($nodeVariant->getDimensions() as $dimension => $presets) {
@@ -131,6 +132,6 @@ class NodeReplicator
         }
         $dimensionString = implode('|', $dimensionsAndPresets);
 
-        $this->logger->info(sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message), LogEnvironment::fromMethodName($loggingMethod ?? __METHOD__));
+        $this->logger->log($logLevel, sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message), LogEnvironment::fromMethodName($loggingMethod ?? __METHOD__));
     }
 }
