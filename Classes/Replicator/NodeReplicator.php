@@ -14,6 +14,7 @@ use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Log\Utility\LogEnvironment;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
+use Neos\Flow\Persistence\PersistenceManagerInterface;
 
 /**
  * @Flow\Scope("singleton")
@@ -27,11 +28,17 @@ class NodeReplicator
     protected $logger;
 
     /**
+     * @Flow\Inject
+     * @var PersistenceManagerInterface
+     */
+    protected $persistenceManager;
+
+    /**
      * Replicates a node to all target dimensions where the parent node already exists
      *
      * @param NodeInterface $node
      */
-    public function replicateNode(NodeInterface $node): void
+    public function replicateNode(NodeInterface $node, bool $createHidden=false): void
     {
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
@@ -40,8 +47,13 @@ class NodeReplicator
                 $this->logReplicationAction($node, 'Node was not replicated, as it already exists in target dimension', __METHOD__, LogLevel::DEBUG);
                 continue;
             }
-
             $nodeVariant = $parentVariant->getContext()->adoptNode($node);
+
+            // Create replicated node as "hidden node"
+            if($createHidden){
+                $nodeVariant->setHidden(true);
+            }
+
             $this->logReplicationAction($nodeVariant, 'Node was replicated to target context.', __METHOD__);
         }
     }
