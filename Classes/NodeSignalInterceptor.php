@@ -20,12 +20,7 @@ class NodeSignalInterceptor
     public static function nodeAdded(NodeInterface $node)
     {
         if (self::hasReplicationConfiguration($node) && self::nodeReplicationEnabled($node)) {
-            if (self::nodeCreateHiddenEnabled($node)) {
-                self::getNodeReplicator()->replicateNode($node, $createHidden=true);
-            }else {
-                self::getNodeReplicator()->replicateNode($node);
-            }
-        }
+                self::getNodeReplicator()->replicateNode($node, self::nodeCreateHiddenEnabled($node));
     }
 
     /**
