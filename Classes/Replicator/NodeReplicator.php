@@ -28,12 +28,6 @@ class NodeReplicator
     protected $logger;
 
     /**
-     * @Flow\Inject
-     * @var PersistenceManagerInterface
-     */
-    protected $persistenceManager;
-
-    /**
      * Replicates a node to all target dimensions where the parent node already exists
      *
      * @param NodeInterface $node
