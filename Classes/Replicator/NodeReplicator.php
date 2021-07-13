@@ -44,9 +44,7 @@ class NodeReplicator
             $nodeVariant = $parentVariant->getContext()->adoptNode($node);
 
             // Create replicated node as "hidden node"
-            if($createHidden){
-                $nodeVariant->setHidden(true);
-            }
+                $nodeVariant->setHidden($createHidden);
 
             $this->logReplicationAction($nodeVariant, 'Node was replicated to target context.', __METHOD__);
         }
