@@ -20,7 +20,7 @@ class NodeSignalInterceptor
     public static function nodeAdded(NodeInterface $node)
     {
         if (self::hasReplicationConfiguration($node) && self::nodeReplicationEnabled($node)) {
-            self::getNodeReplicator()->replicateNode($node);
+            self::getNodeReplicator()->replicateNode($node, self::nodeCreateHiddenEnabled($node));
         }
     }
 
@@ -66,6 +66,15 @@ class NodeSignalInterceptor
     protected static function nodeReplicationEnabled(NodeInterface $node): bool
     {
         return $node->getNodeType()->hasConfiguration('options.replication.structure') && $node->getNodeType()->getConfiguration('options.replication.structure');
+    }
+
+    /**
+     * @param NodeInterface $node
+     * @return bool
+     */
+    protected static function nodeCreateHiddenEnabled(NodeInterface $node): bool
+    {
+        return $node->getNodeType()->hasConfiguration('options.replication.createHidden') && $node->getNodeType()->getConfiguration('options.replication.createHidden');
     }
 
     /**
