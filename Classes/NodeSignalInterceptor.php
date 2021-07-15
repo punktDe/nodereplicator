@@ -34,7 +34,7 @@ class NodeSignalInterceptor
             if (self::nodeContentUpdateOnlyEmpty($node)) {
                 self::getNodeReplicator()->similarizePropertiesEmptyInOtherDimensions($node);
             } else {
-                self::getNodeReplicator()->similarizeNodeVariants($node);
+                self::getNodeReplicator()->similarizeNodeVariants($node, self::getExcludedProperties($node));
             }
 
         }
@@ -103,4 +103,14 @@ class NodeSignalInterceptor
     {
         return new Replicator\NodeReplicator();
     }
+
+    /**
+     * @param NodeInterface $node
+     * @return array|null
+     */
+    protected static function getExcludedProperties(NodeInterface $node): ?array
+    {
+        return $node->getNodeType()->getConfiguration('options.replication.excludeProperties');
+    }
+
 }
