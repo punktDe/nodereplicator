@@ -154,25 +154,29 @@ class NodeReplicator
      */
     protected function getExcludedPropertyValues(NodeInterface $nodeVariant, ?array $excludedProperties): array
     {
-        $excludedPropertyValues = [];
-        if ($excludedProperties) {
-            foreach ($excludedProperties as $property) {
-                $excludedPropertyValues[$property] = $nodeVariant->getProperty($property);
-            }
+        if (empty($excludedPropertyValues)) {
+            return [];
         }
+
+        foreach ($excludedProperties as $property) {
+            $excludedPropertyValues[$property] = $nodeVariant->getProperty($property);
+        }
+
         return $excludedPropertyValues;
     }
 
     /**
      * @param NodeInterface $nodeVariant
-     * @param array $excludedPropertyValues
+     * @param array|null $excludedPropertyValues
      */
-    protected function setExcludedPropertyValues(NodeInterface $nodeVariant, array $excludedPropertyValues): void
+    protected function setExcludedPropertyValues(NodeInterface $nodeVariant, ?array $excludedPropertyValues): void
     {
-        if ($excludedPropertyValues) {
-            foreach ($excludedPropertyValues as $property => $value) {
-                $nodeVariant->setProperty($property, $value);
-            }
+        if (empty($excludedPropertyValues)) {
+            return;
+        }
+
+        foreach ($excludedPropertyValues as $property => $value) {
+            $nodeVariant->setProperty($property, $value);
         }
     }
 }
