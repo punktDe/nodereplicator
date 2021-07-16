@@ -54,8 +54,9 @@ class NodeReplicator
      * Similarize the node to all target dimensions. Copying over all properties and their values.
      *
      * @param NodeInterface $node
+     * @param array|null $excludedProperties
      */
-    public function similarizeNodeVariants(NodeInterface $node): void
+    public function similarizeNodeVariants(NodeInterface $node, ?array $excludedProperties): void
     {
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
@@ -66,7 +67,13 @@ class NodeReplicator
                 continue;
             }
 
+            // if properties are excluded from the replication, we store their values before similarizing
+            // and set them back to their original values after
+            $excludedPropertyValues = $this->getExcludedPropertyValues($nodeVariant, $excludedProperties);
+
             $nodeVariant->getNodeData()->similarize($node->getNodeData());
+
+            $this->setExcludedPropertyValues($nodeVariant, $excludedPropertyValues);
 
             $this->logReplicationAction($nodeVariant, 'Content of target node was updated.', __METHOD__);
         }
@@ -137,5 +144,39 @@ class NodeReplicator
         $dimensionString = implode('|', $dimensionsAndPresets);
 
         $this->logger->log($logLevel, sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message), LogEnvironment::fromMethodName($loggingMethod ?? __METHOD__));
+    }
+
+    /**
+     * @param NodeInterface $nodeVariant
+     * @param array|null $excludedProperties
+     * @return array
+     * @throws NodeException
+     */
+    protected function getExcludedPropertyValues(NodeInterface $nodeVariant, ?array $excludedProperties): array
+    {
+        if (empty($excludedPropertyValues)) {
+            return [];
+        }
+
+        foreach ($excludedProperties as $property) {
+            $excludedPropertyValues[$property] = $nodeVariant->getProperty($property);
+        }
+
+        return $excludedPropertyValues;
+    }
+
+    /**
+     * @param NodeInterface $nodeVariant
+     * @param array|null $excludedPropertyValues
+     */
+    protected function setExcludedPropertyValues(NodeInterface $nodeVariant, ?array $excludedPropertyValues): void
+    {
+        if (empty($excludedPropertyValues)) {
+            return;
+        }
+
+        foreach ($excludedPropertyValues as $property => $value) {
+            $nodeVariant->setProperty($property, $value);
+        }
     }
 }
