@@ -154,7 +154,7 @@ class NodeReplicator
      */
     protected function getExcludedPropertyValues(NodeInterface $nodeVariant, ?array $excludedProperties): array
     {
-        if (empty($excludedPropertyValues)) {
+        if (empty($excludedProperties)) {
             return [];
         }
 
