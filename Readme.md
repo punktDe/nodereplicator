@@ -16,13 +16,13 @@ This package provides an additional option for the NodeType configuration to aut
 
 **Options:**
 
-| Option                                  | Description                                                                     |
-|-----------------------------------------|---------------------------------------------------------------------------------|
-| replication.structure                   | Automatically create and remove the node in other dimensions                    |
-| replication.content                     | Automatically update the content of the corresponding nodes in other dimensions |
-| replication.updateEmptyPropertiesOnly   | When updating content, only update empty properties                             |
-| replication.createHidden                | Replicated nodes are created as hidden nodes                                    |
-| replication.excludeProperties           | Do not update values of these properties in the target node                        |
+| Option                                  | Description                                                                             |
+|-----------------------------------------|-----------------------------------------------------------------------------------------|
+| replication.structure                   | Automatically create and remove the node in other dimensions                            |
+| replication.content                     | Automatically update the content of the corresponding nodes in other dimensions         |
+| replication.updateEmptyPropertiesOnly   | When updating content, only update properties if they are empty in the target dimension |
+| replication.createHidden                | Replicated nodes are created as hidden nodes                                            |
+| replication.excludeProperties           | Do not update values of these properties in the target node                             |
 
 **Example Configuration:**
 
