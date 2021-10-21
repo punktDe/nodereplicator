@@ -12,9 +12,9 @@ use Neos\ContentRepository\Domain\Model\NodeInterface;
 use Neos\ContentRepository\Exception\NodeException;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Log\Utility\LogEnvironment;
+use Neos\Utility\ObjectAccess;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
-use Neos\Flow\Persistence\PersistenceManagerInterface;
 
 /**
  * @Flow\Scope("singleton")
@@ -31,8 +31,9 @@ class NodeReplicator
      * Replicates a node to all target dimensions where the parent node already exists
      *
      * @param NodeInterface $node
+     * @param bool $createHidden
      */
-    public function replicateNode(NodeInterface $node, bool $createHidden=false): void
+    public function replicateNode(NodeInterface $node, bool $createHidden = false): void
     {
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
@@ -44,7 +45,7 @@ class NodeReplicator
             $nodeVariant = $parentVariant->getContext()->adoptNode($node);
 
             // Create replicated node as "hidden node"
-                $nodeVariant->setHidden($createHidden);
+            $nodeVariant->setHidden($createHidden);
 
             $this->logReplicationAction($nodeVariant, 'Node was replicated to target context.', __METHOD__);
         }
@@ -55,9 +56,12 @@ class NodeReplicator
      *
      * @param NodeInterface $node
      * @param array|null $excludedProperties
+     * @throws NodeException
      */
     public function similarizeNodeVariants(NodeInterface $node, ?array $excludedProperties): void
     {
+        $sourceNodeData = $node->getNodeData();
+
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
             $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
@@ -67,13 +71,50 @@ class NodeReplicator
                 continue;
             }
 
-            // if properties are excluded from the replication, we store their values before similarizing
-            // and set them back to their original values after
-            $excludedPropertyValues = $this->getExcludedPropertyValues($nodeVariant, $excludedProperties);
+            $internalPropertyNames = [
+                'nodeType',
+                'hidden',
+                'hiddenAfterDateTime',
+                'hiddenBeforeDateTime',
+                'hiddenInIndex',
+                'accessRoles',
+                'creationDateTime',
+                'lastModificationDateTime',
+                'index'
+            ];
 
-            $nodeVariant->getNodeData()->similarize($node->getNodeData());
+            $targetNodeData = $nodeVariant->getNodeData();
 
-            $this->setExcludedPropertyValues($nodeVariant, $excludedPropertyValues);
+            foreach ($internalPropertyNames as $internalPropertyName) {
+                ObjectAccess::setProperty($targetNodeData, $internalPropertyName, ObjectAccess::getProperty($sourceNodeData, $internalPropertyName));
+            }
+
+            $contentObject = $sourceNodeData->getContentObject();
+            if ($contentObject !== null) {
+                $targetNodeData->setContentObject($contentObject);
+            }
+
+            foreach ($sourceNodeData->getProperties() as $propertyName => $propertyValue) {
+                if (array_key_exists($propertyName, $excludedProperties)) {
+                    continue;
+                }
+
+                $contentReplicationKey = sprintf('properties.%s.options.replication.content', $propertyName);
+                if ($sourceNodeData->getNodeType()->hasConfiguration($contentReplicationKey) && $sourceNodeData->getNodeType()->getConfiguration($contentReplicationKey) === false) {
+                    continue;
+                }
+
+                $updateEmptyOnlyKey = sprintf('properties.%s.options.replication.updateEmptyOnly', $propertyName);
+
+                if (!empty($targetNodeData->getProperty($propertyName))
+                    && $sourceNodeData->getNodeType()->hasConfiguration($updateEmptyOnlyKey)
+                    && $sourceNodeData->getNodeType()->getConfiguration($updateEmptyOnlyKey) === true
+                ) {
+                    continue;
+                }
+
+                $targetNodeData->setProperty($propertyName, $sourceNodeData->getProperty($propertyName));
+            }
 
             $this->logReplicationAction($nodeVariant, 'Content of target node was updated.', __METHOD__);
         }
@@ -144,39 +185,5 @@ class NodeReplicator
         $dimensionString = implode('|', $dimensionsAndPresets);
 
         $this->logger->log($logLevel, sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message), LogEnvironment::fromMethodName($loggingMethod ?? __METHOD__));
-    }
-
-    /**
-     * @param NodeInterface $nodeVariant
-     * @param array|null $excludedProperties
-     * @return array
-     * @throws NodeException
-     */
-    protected function getExcludedPropertyValues(NodeInterface $nodeVariant, ?array $excludedProperties): array
-    {
-        if (empty($excludedProperties)) {
-            return [];
-        }
-
-        foreach ($excludedProperties as $property) {
-            $excludedPropertyValues[$property] = $nodeVariant->getProperty($property);
-        }
-
-        return $excludedPropertyValues;
-    }
-
-    /**
-     * @param NodeInterface $nodeVariant
-     * @param array|null $excludedPropertyValues
-     */
-    protected function setExcludedPropertyValues(NodeInterface $nodeVariant, ?array $excludedPropertyValues): void
-    {
-        if (empty($excludedPropertyValues)) {
-            return;
-        }
-
-        foreach ($excludedPropertyValues as $property => $value) {
-            $nodeVariant->setProperty($property, $value);
-        }
     }
 }

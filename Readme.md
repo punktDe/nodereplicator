@@ -14,15 +14,26 @@ This package provides an additional option for the NodeType configuration to aut
 
 ## Configuration
 
-**Options:**
+**Node Options**
 
-| Option                                  | Description                                                                             |
-|-----------------------------------------|-----------------------------------------------------------------------------------------|
-| replication.structure                   | Automatically create and remove the node in other dimensions                            |
-| replication.content                     | Automatically update the content of the corresponding nodes in other dimensions         |
-| replication.updateEmptyPropertiesOnly   | When updating content, only update properties if they are empty in the target dimension |
-| replication.createHidden                | Replicated nodes are created as hidden nodes                                            |
-| replication.excludeProperties           | Do not update values of these properties in the target node                             |
+Node options are configured within the path `options.replication` of your node type.
+
+| Option                                  | Description                                                                     |
+|-----------------------------------------|---------------------------------------------------------------------------------|
+| structure                   | Automatically create and remove the node in other dimensions                                |
+| content                     | Automatically update the content of the corresponding nodes in other dimensions             |
+| updateEmptyPropertiesOnly   | When updating content, only update properties if they are empty in the target dimension     |
+| createHidden                | Replicated nodes are created as hidden nodes                                                |
+| excludeProperties           | Do not update values of these properties in the target node                                 |
+
+**Property Options**
+
+Property options are configured within the path `options.replication` of every property of your node type.
+
+| Option                                  | Description                                                                     |
+|-----------------------------------------|---------------------------------------------------------------------------------|
+| content                                 | If set to false, this property is not synced                                    |
+| updateEmptyOnly                         | If set to true, the property in the target dimension is only updated when empty |
 
 **Example Configuration:**
 
