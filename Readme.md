@@ -32,7 +32,7 @@ Property options are configured within the path `options.replication` of every p
 
 | Option                                  | Description                                                                     |
 |-----------------------------------------|---------------------------------------------------------------------------------|
-| content                                 | If set to false, this property is not synced                                    |
+| content                                 | If set to true, this property is synced to other dimensions                     |
 | updateEmptyOnly                         | If set to true, the property in the target dimension is only updated when empty |
 
 **Example Configuration:**
