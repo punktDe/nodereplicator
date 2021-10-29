@@ -95,7 +95,7 @@ class NodeReplicator
             }
 
             foreach ($sourceNodeData->getProperties() as $propertyName => $propertyValue) {
-                if (is_array($excludedProperties) && array_key_exists($propertyName, $excludedProperties)) {
+                if (is_array($excludedProperties) && in_array($propertyName, $excludedProperties)) {
                     continue;
                 }
 
