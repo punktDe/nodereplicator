@@ -30,10 +30,18 @@ Node options are configured within the path `options.replication` of your node t
 
 Property options are configured within the path `options.replication` of every property of your node type.
 
+**NEW**: _Node Options structure need to be enabled to enable Property Options_
+
+**NEW**: _Property Options have higher priority than Node Options_
+
+
 | Option                                  | Description                                                                     |
 |-----------------------------------------|---------------------------------------------------------------------------------|
 | content                                 | If set to true, this property is synced to other dimensions                     |
 | updateEmptyOnly                         | If set to true, the property in the target dimension is only updated when empty |
+
+
+
 
 **Example Configuration:**
 
