@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace PunktDe\NodeReplicator;
 
 /*
- *  (c) 2017-2019 punkt.de GmbH - Karlsruhe, Germany - http://punkt.de
+ *  (c) 2017-2021 punkt.de GmbH - Karlsruhe, Germany - http://punkt.de
  *  All rights reserved.
  */
 
@@ -20,7 +20,7 @@ class NodeSignalInterceptor
     public static function nodeAdded(NodeInterface $node): void
     {
         if (self::hasReplicationConfiguration($node) && self::nodeCreateReplicationEnabled($node)) {
-            self::getNodeReplicator()->replicateNode($node, self::nodeCreateHiddenEnabled($node));
+            self::getNodeReplicator()->createNodeVariants($node, self::nodeCreateHiddenEnabled($node));
         }
     }
 
@@ -31,19 +31,21 @@ class NodeSignalInterceptor
         }
     }
 
-    public static function nodeUpdated(NodeInterface $node): void
+    public function nodePropertyChanged(NodeInterface $node, string $propertyName, $oldValue, $newValue): void
     {
-        if (self::hasReplicationConfiguration($node) && self::nodeContentUpdateEnabled($node)) {
-            if (self::nodeContentUpdateOnlyEmpty($node)) {
-                self::getNodeReplicator()->similarizePropertiesEmptyInOtherDimensions($node);
-            } else {
-                self::getNodeReplicator()->similarizeNodeVariants($node, self::getExcludedProperties($node));
-            }
+        if (!self::hasReplicationConfiguration($node)) {
+            return;
+        }
 
+        if ($node->getNodeType()->getConfiguration('properties.' . $propertyName . '.options.replication.updateEmptyOnly')) {
+            self::getNodeReplicator()->updateContent($node, $propertyName, $newValue, true);
+            return;
+        }
+
+        if ($node->getNodeType()->getConfiguration('properties.' . $propertyName . '.options.replication.update')) {
+            self::getNodeReplicator()->updateContent($node, $propertyName, $newValue, false);
         }
     }
-
-
 
     protected static function hasReplicationConfiguration(NodeInterface $node): bool
     {
@@ -66,25 +68,6 @@ class NodeSignalInterceptor
     }
 
     /**
-     * @param NodeInterface $node
-     * @return bool
-     */
-    protected static function nodeContentUpdateEnabled(NodeInterface $node): bool
-    {
-        return $node->getNodeType()->hasConfiguration('options.replication.content') && $node->getNodeType()->getConfiguration('options.replication.content');
-    }
-
-    /**
-     * @param NodeInterface $node
-     * @return bool
-     */
-    protected static function nodeContentUpdateOnlyEmpty(NodeInterface $node): bool
-    {
-        return $node->getNodeType()->hasConfiguration('options.replication.updateEmptyPropertiesOnly')
-            && $node->getNodeType()->getConfiguration('options.replication.updateEmptyPropertiesOnly');
-    }
-
-    /**
      * @return Replicator\NodeReplicator
      */
     protected static function getNodeReplicator(): NodeReplicator
@@ -100,5 +83,4 @@ class NodeSignalInterceptor
     {
         return $node->getNodeType()->getConfiguration('options.replication.excludeProperties');
     }
-
 }
