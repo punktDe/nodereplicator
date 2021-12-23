@@ -31,12 +31,6 @@ class NodeSignalInterceptor
         }
     }
 
-
-
-    /**
-     * @param NodeInterface $node
-     * @throws NodeException
-     */
     public static function nodeUpdated(NodeInterface $node): void
     {
         if (self::hasReplicationConfiguration($node) && self::nodeContentUpdateEnabled($node)) {
@@ -58,17 +52,17 @@ class NodeSignalInterceptor
 
     protected static function nodeCreateReplicationEnabled(NodeInterface $node): bool
     {
-        return $node->getNodeType()->hasConfiguration('options.replication.replicateCreate') && $node->getNodeType()->getConfiguration('options.replication.replicateCreate');
+        return $node->getNodeType()->hasConfiguration('options.replication.structure.create') && $node->getNodeType()->getConfiguration('options.replication.structure.create');
     }
 
     protected static function nodeRemoveReplicationEnabled(NodeInterface $node): bool
     {
-        return $node->getNodeType()->hasConfiguration('options.replication.replicateRemove') && $node->getNodeType()->getConfiguration('options.replication.replicateRemove');
+        return $node->getNodeType()->hasConfiguration('options.replication.structure.remove') && $node->getNodeType()->getConfiguration('options.replication.structure.remove');
     }
 
     protected static function nodeCreateHiddenEnabled(NodeInterface $node): bool
     {
-        return $node->getNodeType()->hasConfiguration('options.replication.createHidden') && $node->getNodeType()->getConfiguration('options.replication.createHidden');
+        return $node->getNodeType()->hasConfiguration('options.replication.structure.createHidden') && $node->getNodeType()->getConfiguration('options.replication.structure.createHidden');
     }
 
     /**
