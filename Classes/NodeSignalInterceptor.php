@@ -24,6 +24,15 @@ class NodeSignalInterceptor
         }
     }
 
+    public function nodeRemoved(NodeInterface $node): void
+    {
+        if (self::hasReplicationConfiguration($node) && self::nodeRemoveReplicationEnabled($node)) {
+            self::getNodeReplicator()->removeNodeVariants($node);
+        }
+    }
+
+
+
     /**
      * @param NodeInterface $node
      * @throws NodeException
@@ -40,15 +49,7 @@ class NodeSignalInterceptor
         }
     }
 
-    /**
-     * @param NodeInterface $node
-     */
-    public function nodeRemoved(NodeInterface $node): void
-    {
-        if (self::hasReplicationConfiguration($node) && self::nodeCreateReplicationEnabled($node)) {
-            self::getNodeReplicator()->removeNodeVariants($node);
-        }
-    }
+
 
     protected static function hasReplicationConfiguration(NodeInterface $node): bool
     {
@@ -58,6 +59,11 @@ class NodeSignalInterceptor
     protected static function nodeCreateReplicationEnabled(NodeInterface $node): bool
     {
         return $node->getNodeType()->hasConfiguration('options.replication.replicateCreate') && $node->getNodeType()->getConfiguration('options.replication.replicateCreate');
+    }
+
+    protected static function nodeRemoveReplicationEnabled(NodeInterface $node): bool
+    {
+        return $node->getNodeType()->hasConfiguration('options.replication.replicateRemove') && $node->getNodeType()->getConfiguration('options.replication.replicateRemove');
     }
 
     protected static function nodeCreateHiddenEnabled(NodeInterface $node): bool

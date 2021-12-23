@@ -77,8 +77,6 @@ class NodeReplicator
 
     /**
      * Remove all node variants
-     *
-     * @param NodeInterface $node
      */
     public function removeNodeVariants(NodeInterface $node): void
     {
@@ -87,7 +85,7 @@ class NodeReplicator
             $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
             if ($nodeVariant !== null) {
                 $nodeVariant->remove();
-                $this->logReplicationAction($nodeVariant, 'Node variant was deleted.', __METHOD__);
+                $this->logReplicationAction($nodeVariant, 'Node variant was removed.', __METHOD__);
             }
         }
     }
