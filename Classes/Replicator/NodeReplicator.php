@@ -27,12 +27,7 @@ class NodeReplicator
      */
     protected $logger;
 
-    /**
-     * Replicates a node to all target dimensions where the parent node already exists
-     *
-     * @param NodeInterface $node
-     */
-    public function replicateNode(NodeInterface $node, bool $createHidden=false): void
+    public function replicateNode(NodeInterface $node, bool $createHidden = false): void
     {
         /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
@@ -41,10 +36,11 @@ class NodeReplicator
                 $this->logReplicationAction($node, 'Node was not replicated, as it already exists in target dimension', __METHOD__, LogLevel::DEBUG);
                 continue;
             }
+
             $nodeVariant = $parentVariant->getContext()->adoptNode($node);
 
             // Create replicated node as "hidden node"
-                $nodeVariant->setHidden($createHidden);
+            $nodeVariant->setHidden($createHidden);
 
             $this->logReplicationAction($nodeVariant, 'Node was replicated to target context.', __METHOD__);
         }

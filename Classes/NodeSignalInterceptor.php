@@ -17,9 +17,9 @@ class NodeSignalInterceptor
     /**
      * @param NodeInterface $node
      */
-    public static function nodeAdded(NodeInterface $node)
+    public static function nodeAdded(NodeInterface $node): void
     {
-        if (self::hasReplicationConfiguration($node) && self::nodeReplicationEnabled($node)) {
+        if (self::hasReplicationConfiguration($node) && self::nodeCreateReplicationEnabled($node)) {
             self::getNodeReplicator()->replicateNode($node, self::nodeCreateHiddenEnabled($node));
         }
     }
@@ -45,33 +45,21 @@ class NodeSignalInterceptor
      */
     public function nodeRemoved(NodeInterface $node): void
     {
-        if (self::hasReplicationConfiguration($node) && self::nodeReplicationEnabled($node)) {
+        if (self::hasReplicationConfiguration($node) && self::nodeCreateReplicationEnabled($node)) {
             self::getNodeReplicator()->removeNodeVariants($node);
         }
     }
 
-    /**
-     * @param NodeInterface $node
-     * @return bool
-     */
     protected static function hasReplicationConfiguration(NodeInterface $node): bool
     {
         return $node->getNodeType()->hasConfiguration('options.replication');
     }
 
-    /**
-     * @param NodeInterface $node
-     * @return bool
-     */
-    protected static function nodeReplicationEnabled(NodeInterface $node): bool
+    protected static function nodeCreateReplicationEnabled(NodeInterface $node): bool
     {
-        return $node->getNodeType()->hasConfiguration('options.replication.structure') && $node->getNodeType()->getConfiguration('options.replication.structure');
+        return $node->getNodeType()->hasConfiguration('options.replication.replicateCreate') && $node->getNodeType()->getConfiguration('options.replication.replicateCreate');
     }
 
-    /**
-     * @param NodeInterface $node
-     * @return bool
-     */
     protected static function nodeCreateHiddenEnabled(NodeInterface $node): bool
     {
         return $node->getNodeType()->hasConfiguration('options.replication.createHidden') && $node->getNodeType()->getConfiguration('options.replication.createHidden');
