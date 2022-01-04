@@ -27,103 +27,60 @@ class NodeReplicator
      */
     protected $logger;
 
-    /**
-     * Replicates a node to all target dimensions where the parent node already exists
-     *
-     * @param NodeInterface $node
-     */
-    public function replicateNode(NodeInterface $node, bool $createHidden=false): void
+    public function createNodeVariants(NodeInterface $node, bool $createHidden = false): void
     {
-        /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
 
             if ($parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier()) !== null) {
                 $this->logReplicationAction($node, 'Node was not replicated, as it already exists in target dimension', __METHOD__, LogLevel::DEBUG);
                 continue;
             }
+
             $nodeVariant = $parentVariant->getContext()->adoptNode($node);
 
             // Create replicated node as "hidden node"
-                $nodeVariant->setHidden($createHidden);
+            $nodeVariant->setHidden($createHidden);
 
             $this->logReplicationAction($nodeVariant, 'Node was replicated to target context.', __METHOD__);
         }
     }
 
     /**
-     * Similarize the node to all target dimensions. Copying over all properties and their values.
-     *
-     * @param NodeInterface $node
-     * @param array|null $excludedProperties
-     */
-    public function similarizeNodeVariants(NodeInterface $node, ?array $excludedProperties): void
-    {
-        /** @var NodeInterface $parentVariant */
-        foreach ($this->getParentVariants($node) as $parentVariant) {
-            $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
-
-            if (!$nodeVariant instanceof NodeInterface) {
-                $this->logger->info(sprintf('[NodeIdentifier: %s, TargetDimension: %s] Cannot similarize node, as the node was not found in the target dimension.', $node->getIdentifier(), json_encode($parentVariant->getDimensions())), LogEnvironment::fromMethodName(__METHOD__));
-                continue;
-            }
-
-            // if properties are excluded from the replication, we store their values before similarizing
-            // and set them back to their original values after
-            $excludedPropertyValues = $this->getExcludedPropertyValues($nodeVariant, $excludedProperties);
-
-            $nodeVariant->getNodeData()->similarize($node->getNodeData());
-
-            $this->setExcludedPropertyValues($nodeVariant, $excludedPropertyValues);
-
-            $this->logReplicationAction($nodeVariant, 'Content of target node was updated.', __METHOD__);
-        }
-    }
-
-    /**
      * Remove all node variants
-     *
-     * @param NodeInterface $node
      */
     public function removeNodeVariants(NodeInterface $node): void
     {
-        /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
             $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
             if ($nodeVariant !== null) {
                 $nodeVariant->remove();
-                $this->logReplicationAction($nodeVariant, 'Node variant was deleted.', __METHOD__);
+                $this->logReplicationAction($nodeVariant, 'Node variant was removed.', __METHOD__);
             }
         }
     }
 
-    /**
-     * @param NodeInterface $node
-     * @throws NodeException
-     */
-    public function similarizePropertiesEmptyInOtherDimensions(NodeInterface $node): void
+    public function updateContent(NodeInterface $node, string $propertyName, $newValue, bool $updateEmptyOnly)
     {
-        /** @var NodeInterface $parentVariant */
         foreach ($this->getParentVariants($node) as $parentVariant) {
-            $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
+            $variantNode = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
 
-            if (!$nodeVariant) {
-                $this->logger->warning(sprintf('Trying to set properties for empty node variant, skipping - original node identifier "%s"', $node->getIdentifier()), LogEnvironment::fromMethodName(__METHOD__));
+            if ($variantNode === null) {
+                $this->logReplicationAction($node, 'Node content was not update, as the variant does not exist.', __METHOD__, LogLevel::DEBUG);
                 continue;
             }
 
-            foreach ($node->getNodeData()->getProperties() as $propertyName => $propertyValue) {
-                if (!$nodeVariant->hasProperty($propertyName) || empty($nodeVariant->getProperty($propertyName))) {
-                    $nodeVariant->setProperty($propertyName, $propertyValue);
-                }
+            if ($updateEmptyOnly && !empty($variantNode->getProperty($propertyName))) {
+                continue;
             }
 
-            $this->logReplicationAction($nodeVariant, 'Content of target node was updated. - only empty properties', __METHOD__);
+            $variantNode->setProperty($propertyName, $newValue);
+            $this->logReplicationAction($node, sprintf('Property %s of the node was updated', $propertyName), __METHOD__);
         }
     }
 
     /**
      * @param NodeInterface $node
-     * @return array
+     * @return NodeInterface[]
      */
     protected function getParentVariants(NodeInterface $node): array
     {
@@ -134,6 +91,7 @@ class NodeReplicator
      * @param NodeInterface $nodeVariant
      * @param string $message
      * @param string|null $loggingMethod
+     * @param string $logLevel
      */
     protected function logReplicationAction(NodeInterface $nodeVariant, string $message, ?string $loggingMethod = null, string $logLevel = LogLevel::INFO): void
     {
@@ -144,39 +102,5 @@ class NodeReplicator
         $dimensionString = implode('|', $dimensionsAndPresets);
 
         $this->logger->log($logLevel, sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeVariant->getIdentifier(), $dimensionString, $message), LogEnvironment::fromMethodName($loggingMethod ?? __METHOD__));
-    }
-
-    /**
-     * @param NodeInterface $nodeVariant
-     * @param array|null $excludedProperties
-     * @return array
-     * @throws NodeException
-     */
-    protected function getExcludedPropertyValues(NodeInterface $nodeVariant, ?array $excludedProperties): array
-    {
-        if (empty($excludedProperties)) {
-            return [];
-        }
-
-        foreach ($excludedProperties as $property) {
-            $excludedPropertyValues[$property] = $nodeVariant->getProperty($property);
-        }
-
-        return $excludedPropertyValues;
-    }
-
-    /**
-     * @param NodeInterface $nodeVariant
-     * @param array|null $excludedPropertyValues
-     */
-    protected function setExcludedPropertyValues(NodeInterface $nodeVariant, ?array $excludedPropertyValues): void
-    {
-        if (empty($excludedPropertyValues)) {
-            return;
-        }
-
-        foreach ($excludedPropertyValues as $property => $value) {
-            $nodeVariant->setProperty($property, $value);
-        }
     }
 }

@@ -16,13 +16,40 @@ This package provides an additional option for the NodeType configuration to aut
 
 **Options:**
 
-| Option                                  | Description                                                                             |
-|-----------------------------------------|-----------------------------------------------------------------------------------------|
-| replication.structure                   | Automatically create and remove the node in other dimensions                            |
-| replication.content                     | Automatically update the content of the corresponding nodes in other dimensions         |
-| replication.updateEmptyPropertiesOnly   | When updating content, only update properties if they are empty in the target dimension |
-| replication.createHidden                | Replicated nodes are created as hidden nodes                                            |
-| replication.excludeProperties           | Do not update values of these properties in the target node                             |
+```yaml
+    'Vendor.Package:Address':
+      superTypes:
+        'Neos.Neos:Content': true
+      
+    ...
+      
+      options:
+        replication:
+          structure:
+            // Replicate the node itself into the other dimension if the parent exists and the node is missing, default: false
+            create: true
+            // Create the node as hidden, default: false
+            createHidden: true
+            // Also delete the node in other dimensions, default: false
+            remove: true
+    
+          // Defaults for all properties of this nodeType 
+          properties:
+            // defaults false
+            update: true
+            
+            // default false, takes precedence of update
+            updateEmptyOnly: true 
+    
+       properties:
+         myProperty:
+           replication:
+             // default inherited from node level config
+             update: false
+             // default inherited from node level config
+             updateEmptyOnly: false
+```
+
 
 **Example Configuration:**
 
@@ -34,8 +61,10 @@ This package provides an additional option for the NodeType configuration to aut
   
   options:
     replication:
-      structure: true
-      content: true
+      structure:
+        create: true
+      properties: 
+        update: true
     
 'Vendor.Package:AddressCategory':
   superTypes:
@@ -44,42 +73,50 @@ This package provides an additional option for the NodeType configuration to aut
   
   options:  
     replication:
-      structure: true
+        structure:
+            create: true
       
 'Vendor.Package:AnotherAddressCategory':
   superTypes:
     'Neos.Neos:Content': true
   ...
   
-  options:  
-    replication:
-      structure: true
-      content: true
-      updateEmptyPropertiesOnly: true
+  options:
+      replication:
+          structure:
+              create: true
+          properties:
+              updateEmptyOnly: true
       
-      
+
 'Vendor.Package:TranslateableCategory':
   superTypes:
     'Neos.Neos:Content': true
   ...
 
   options:
-    replication:
-      structure: true
-      content: true
-      updateEmptyPropertiesOnly: true
-      createHidden: true
-    
+      replication:
+          structure:
+              createHidden: true
+          properties:
+              updateEmptyOnly: true
+
+# Disable a single property
+
 'Vendor.Package:YetAnotherAddressCategory':
   superTypes:
     'Neos.Neos:Content': true
   ...
   
-  options:  
-    replication:
-      structure: true
-      content: true
-      excludeProperties:
-        - metaDescription
-        - metaKeywords
+  options:
+      replication:
+          structure:
+              create: true
+          properties:
+              update: true
+  properties:    
+      metaDescription:
+        options:
+          replication:
+            update: false
 ```

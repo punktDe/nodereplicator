@@ -26,7 +26,7 @@ class Package extends BasePackage
     {
         $dispatcher = $bootstrap->getSignalSlotDispatcher();
         $dispatcher->connect(Node::class, 'nodeAdded', NodeSignalInterceptor::class, '::nodeAdded');
-        $dispatcher->connect(Node::class, 'nodeUpdated', NodeSignalInterceptor::class, '::nodeUpdated');
+        $dispatcher->connect(Node::class, 'nodePropertyChanged', NodeSignalInterceptor::class, '::nodePropertyChanged');
         $dispatcher->connect(Node::class, 'nodeRemoved', NodeSignalInterceptor::class, '::nodeRemoved');
     }
 }
