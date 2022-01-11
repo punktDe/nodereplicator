@@ -20,6 +20,9 @@ class NodeSignalInterceptor
     public static function nodeAdded(NodeInterface $node): void
     {
         if (self::hasReplicationConfiguration($node) && (self::nodeCreateReplicationEnabled($node) || self::nodeCreateHiddenEnabled($node))) {
+            if (count($node->getNodeType()->getAutoCreatedChildNodes()) > 0 && count($node->findChildNodes()) === 0) {
+                return;
+            }
             self::getNodeReplicator()->createNodeVariants($node, self::nodeCreateHiddenEnabled($node));
         }
     }
