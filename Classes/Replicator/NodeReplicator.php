@@ -84,6 +84,14 @@ class NodeReplicator
      */
     protected function getParentVariants(NodeInterface $node): array
     {
+        // This is a fix for an edge case: copying a document with a content collection to another dimension (both using the replication)
+        // with an autocreated child node in the content collection. As the content collection in the new dimension is not persisted at
+        // this point, getParent() on the autocreated child node will return null. As this only happens when copying a document to another
+        // dimension, there is no need to replicate anything in this moment.
+        if ($node->getParent() === null) {
+            return [];
+        }
+        
         return $node->getParent()->getOtherNodeVariants();
     }
 
