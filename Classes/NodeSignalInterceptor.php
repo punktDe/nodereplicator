@@ -20,6 +20,11 @@ class NodeSignalInterceptor
     public static function nodeAdded(NodeInterface $node): void
     {
         if (self::hasReplicationConfiguration($node) && (self::nodeCreateReplicationEnabled($node) || self::nodeCreateHiddenEnabled($node))) {
+            // The nodedAdded signal is called twice. When it is called the first time, 
+            // the node is not created completely (the child nodes are not created yet), so we skip that call.
+            if (count($node->getNodeType()->getAutoCreatedChildNodes()) > 0 && count($node->findChildNodes()) === 0) {
+                return;
+            }
             self::getNodeReplicator()->createNodeVariants($node, self::nodeCreateHiddenEnabled($node));
         }
     }
