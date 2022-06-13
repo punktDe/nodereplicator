@@ -9,12 +9,10 @@ namespace PunktDe\NodeReplicator\Replicator;
  */
 
 use Neos\ContentRepository\Domain\Model\NodeInterface;
-use Neos\ContentRepository\Exception\NodeException;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Log\Utility\LogEnvironment;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
-use Neos\Flow\Persistence\PersistenceManagerInterface;
 
 /**
  * @Flow\Scope("singleton")
@@ -26,6 +24,11 @@ class NodeReplicator
      * @var LoggerInterface
      */
     protected $logger;
+
+    /**
+     * @var boolean
+     */
+    protected $isReplicating = false;
 
     public function createNodeVariants(NodeInterface $node, bool $createHidden = false): void
     {
@@ -61,6 +64,13 @@ class NodeReplicator
 
     public function updateContent(NodeInterface $node, string $propertyName, $newValue, bool $updateEmptyOnly)
     {
+        // Setting properties on nodes trigger the nodePropertyChanged signal so we need to prevent this function to keep
+        // running in a loop (or at least more often as it would need). The solution here introduces state but it is
+        // most likely okay because there is no concurrency.
+        if ($this->isReplicating === true) {
+            return;
+        }
+
         foreach ($this->getParentVariants($node) as $parentVariant) {
             $variantNode = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
 
@@ -73,8 +83,14 @@ class NodeReplicator
                 continue;
             }
 
-            $variantNode->setProperty($propertyName, $newValue);
-            $this->logReplicationAction($node, sprintf('Property %s of the node was updated', $propertyName), __METHOD__);
+            $this->isReplicating = true;
+            try {
+                $variantNode->setProperty($propertyName, $newValue);
+            } finally {
+                $this->isReplicating = false;
+            }
+
+            $this->logReplicationAction($variantNode, sprintf('Property %s of the node was updated', $propertyName), __METHOD__);
         }
     }
 
@@ -91,7 +107,7 @@ class NodeReplicator
         if ($node->getParent() === null) {
             return [];
         }
-        
+
         return $node->getParent()->getOtherNodeVariants();
     }
 
