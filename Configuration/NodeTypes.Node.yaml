@@ -1,4 +1,4 @@
 'Neos.Neos:Node':
   postprocessors:
-    'NodeTypePresetPostprocessor':
+    'NodeTypeReplicationPostProcessor':
       postprocessor: 'PunktDe\NodeReplicator\NodeType\NodeTypePostProcessor'
