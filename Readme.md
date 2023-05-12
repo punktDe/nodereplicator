@@ -43,11 +43,12 @@ This package provides an additional option for the NodeType configuration to aut
     
        properties:
          myProperty:
-           replication:
-             // default inherited from node level config
-             update: false
-             // default inherited from node level config
-             updateEmptyOnly: false
+           options:
+             replication:
+               // default inherited from node level config
+               update: false
+               // default inherited from node level config
+               updateEmptyOnly: false
 ```
 
 
