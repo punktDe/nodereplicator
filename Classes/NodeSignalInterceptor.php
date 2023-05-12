@@ -9,30 +9,39 @@ namespace PunktDe\NodeReplicator;
  */
 
 use Neos\ContentRepository\Domain\Model\NodeInterface;
-use Neos\ContentRepository\Exception\NodeException;
+use Neos\Flow\Annotations as Flow;
 use PunktDe\NodeReplicator\Replicator\NodeReplicator;
 
+/**
+ * @Flow\Scope("singleton")
+ */
 class NodeSignalInterceptor
 {
     /**
+     * @Flow\Inject
+     * @var NodeReplicator
+     */
+    protected $nodeReplicator;
+
+    /**
      * @param NodeInterface $node
      */
-    public static function nodeAdded(NodeInterface $node): void
+    public function nodeAdded(NodeInterface $node): void
     {
         if (self::hasReplicationConfiguration($node) && (self::nodeCreateReplicationEnabled($node) || self::nodeCreateHiddenEnabled($node))) {
-            // The nodedAdded signal is called twice. When it is called the first time, 
+            // The nodeAdded signal is called twice. When it is called the first time,
             // the node is not created completely (the child nodes are not created yet), so we skip that call.
             if (count($node->getNodeType()->getAutoCreatedChildNodes()) > 0 && count($node->findChildNodes()) === 0) {
                 return;
             }
-            self::getNodeReplicator()->createNodeVariants($node, self::nodeCreateHiddenEnabled($node));
+            $this->nodeReplicator->createNodeVariants($node, self::nodeCreateHiddenEnabled($node));
         }
     }
 
     public static function nodeRemoved(NodeInterface $node): void
     {
         if (self::hasReplicationConfiguration($node) && self::nodeRemoveReplicationEnabled($node)) {
-            self::getNodeReplicator()->removeNodeVariants($node);
+            $this->nodeReplicator->removeNodeVariants($node);
         }
     }
 
@@ -43,12 +52,12 @@ class NodeSignalInterceptor
         }
 
         if ($node->getNodeType()->getConfiguration('properties.' . $propertyName . '.options.replication.updateEmptyOnly')) {
-            self::getNodeReplicator()->updateContent($node, $propertyName, $newValue, true);
+            $this->nodeReplicator->updateContent($node, $propertyName, $newValue, true);
             return;
         }
 
         if ($node->getNodeType()->getConfiguration('properties.' . $propertyName . '.options.replication.update')) {
-            self::getNodeReplicator()->updateContent($node, $propertyName, $newValue, false);
+            $this->nodeReplicator->updateContent($node, $propertyName, $newValue, false);
         }
     }
 
@@ -70,22 +79,5 @@ class NodeSignalInterceptor
     protected static function nodeCreateHiddenEnabled(NodeInterface $node): bool
     {
         return $node->getNodeType()->hasConfiguration('options.replication.structure.createHidden') && $node->getNodeType()->getConfiguration('options.replication.structure.createHidden');
-    }
-
-    /**
-     * @return Replicator\NodeReplicator
-     */
-    protected static function getNodeReplicator(): NodeReplicator
-    {
-        return new Replicator\NodeReplicator();
-    }
-
-    /**
-     * @param NodeInterface $node
-     * @return array|null
-     */
-    protected static function getExcludedProperties(NodeInterface $node): ?array
-    {
-        return $node->getNodeType()->getConfiguration('options.replication.excludeProperties');
     }
 }
