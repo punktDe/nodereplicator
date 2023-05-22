@@ -40,6 +40,10 @@ This package provides an additional option for the NodeType configuration to aut
             
             // default false, takes precedence of update
             updateEmptyOnly: true 
+          
+          // by default all paths are allowed, with this option set the replication is limited to nodes whose path starts with one of the defined values
+          onlyPathsStartingWith:
+            - /sites/yourSite/childNodeOfRootPage
     
        properties:
          myProperty:
