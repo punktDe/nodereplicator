@@ -10,7 +10,6 @@ namespace PunktDe\NodeReplicator;
 
 use Neos\ContentRepository\Domain\Model\NodeInterface;
 use Neos\ContentRepository\Exception\NodeException;
-use Psr\Log\LoggerInterface;
 use PunktDe\NodeReplicator\Replicator\NodeReplicator;
 
 class NodeSignalInterceptor
