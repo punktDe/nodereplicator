@@ -10,17 +10,21 @@ namespace PunktDe\NodeReplicator;
 
 use Neos\ContentRepository\Domain\Model\NodeInterface;
 use Neos\ContentRepository\Exception\NodeException;
+use Psr\Log\LoggerInterface;
 use PunktDe\NodeReplicator\Replicator\NodeReplicator;
 
 class NodeSignalInterceptor
 {
+
+    private static bool $signalHandlingEnabled = true;
+
     /**
      * @param NodeInterface $node
      */
     public static function nodeAdded(NodeInterface $node): void
     {
-        if (self::hasReplicationConfiguration($node) && (self::nodeCreateReplicationEnabled($node) || self::nodeCreateHiddenEnabled($node))) {
-            // The nodedAdded signal is called twice. When it is called the first time, 
+        if (self::$signalHandlingEnabled && self::hasReplicationConfiguration($node) && (self::nodeCreateReplicationEnabled($node) || self::nodeCreateHiddenEnabled($node))) {
+            // The nodedAdded signal is called twice. When it is called the first time,
             // the node is not created completely (the child nodes are not created yet), so we skip that call.
             if (count($node->getNodeType()->getAutoCreatedChildNodes()) > 0 && count($node->findChildNodes()) === 0) {
                 return;
@@ -31,13 +35,17 @@ class NodeSignalInterceptor
 
     public static function nodeRemoved(NodeInterface $node): void
     {
-        if (self::hasReplicationConfiguration($node) && self::nodeRemoveReplicationEnabled($node)) {
+        if (self::$signalHandlingEnabled && self::hasReplicationConfiguration($node) && self::nodeRemoveReplicationEnabled($node)) {
             self::getNodeReplicator()->removeNodeVariants($node);
         }
     }
 
     public static function nodePropertyChanged(NodeInterface $node, string $propertyName, $oldValue, $newValue): void
     {
+        if (!self::$signalHandlingEnabled) {
+            return;
+        }
+
         if (!self::hasReplicationConfiguration($node)) {
             return;
         }
@@ -78,6 +86,17 @@ class NodeSignalInterceptor
     protected static function getNodeReplicator(): NodeReplicator
     {
         return new Replicator\NodeReplicator();
+    }
+
+    public static function withoutTriggeringSignals(\Closure $callback): void
+    {
+        $signalsEnabled = self::$signalHandlingEnabled;
+        self::$signalHandlingEnabled = false;
+        try {
+            $callback();
+        } finally {
+            self::$signalHandlingEnabled = $signalsEnabled;
+        }
     }
 
     /**

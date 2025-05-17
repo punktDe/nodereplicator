@@ -15,6 +15,7 @@ use Neos\Flow\Log\Utility\LogEnvironment;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Neos\Flow\Persistence\PersistenceManagerInterface;
+use PunktDe\NodeReplicator\NodeSignalInterceptor;
 
 /**
  * @Flow\Scope("singleton")
@@ -53,7 +54,7 @@ class NodeReplicator
         foreach ($this->getParentVariants($node) as $parentVariant) {
             $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
             if ($nodeVariant !== null) {
-                $nodeVariant->remove();
+                NodeSignalInterceptor::withoutTriggeringSignals(fn() => $nodeVariant->remove());
                 $this->logReplicationAction($nodeVariant, 'Node variant was removed.', __METHOD__);
             }
         }
@@ -91,7 +92,7 @@ class NodeReplicator
         if ($node->getParent() === null) {
             return [];
         }
-        
+
         return $node->getParent()->getOtherNodeVariants();
     }
 
