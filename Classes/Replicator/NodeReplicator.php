@@ -52,7 +52,7 @@ class NodeReplicator
     {
         foreach ($this->getParentVariants($node) as $parentVariant) {
             $nodeVariant = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
-            if ($nodeVariant !== null) {
+            if ($nodeVariant !== null && !$nodeVariant->isRemoved()) {
                 $nodeVariant->remove();
                 $this->logReplicationAction($nodeVariant, 'Node variant was removed.', __METHOD__);
             }
