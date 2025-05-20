@@ -59,22 +59,41 @@ class NodeReplicator
         }
     }
 
+    /**
+     * Starting with at least Neos 8.3, {@see self::updateContent()} triggering $variantNode->setProperty(), which
+     * again triggers the node update signals, which then triggers updateContent -> endless loop.
+     *
+     * To prevent this, we remember the currently updated node ID and do an early return if we see this.
+     * @var array
+     */
+    protected static array $currentlyUpdatingNodeIds = [];
     public function updateContent(NodeInterface $node, string $propertyName, $newValue, bool $updateEmptyOnly)
     {
-        foreach ($this->getParentVariants($node) as $parentVariant) {
-            $variantNode = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
+        if (isset(self::$currentlyUpdatingNodeIds[$node->getIdentifier()])) {
+            // we are currently in the recursion
+            return;
+        }
 
-            if ($variantNode === null) {
-                $this->logReplicationAction($node, 'Node content was not update, as the variant does not exist.', __METHOD__, LogLevel::DEBUG);
-                continue;
+        self::$currentlyUpdatingNodeIds[$node->getIdentifier()] = true;
+        try {
+            foreach ($this->getParentVariants($node) as $parentVariant) {
+                $variantNode = $parentVariant->getContext()->getNodeByIdentifier($node->getIdentifier());
+
+                if ($variantNode === null) {
+                    $this->logReplicationAction($node, 'Node content was not update, as the variant does not exist.', __METHOD__, LogLevel::DEBUG);
+                    continue;
+                }
+
+                if ($updateEmptyOnly && !empty($variantNode->getProperty($propertyName))) {
+                    continue;
+                }
+
+                // WARNING: this also triggers "updateContent" hook again
+                $variantNode->setProperty($propertyName, $newValue);
+                $this->logReplicationAction($node, sprintf('Property %s of the node was updated', $propertyName), __METHOD__);
             }
-
-            if ($updateEmptyOnly && !empty($variantNode->getProperty($propertyName))) {
-                continue;
-            }
-
-            $variantNode->setProperty($propertyName, $newValue);
-            $this->logReplicationAction($node, sprintf('Property %s of the node was updated', $propertyName), __METHOD__);
+        } finally {
+            unset(self::$currentlyUpdatingNodeIds[$node->getIdentifier()]);
         }
     }
 
@@ -91,7 +110,7 @@ class NodeReplicator
         if ($node->getParent() === null) {
             return [];
         }
-        
+
         return $node->getParent()->getOtherNodeVariants();
     }
 
