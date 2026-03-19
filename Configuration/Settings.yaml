@@ -1,0 +1,16 @@
+Neos:
+  ContentRepositoryRegistry:
+    contentRepositories:
+      default:
+        contentGraphProjection:
+          catchUpHooks:
+            'PunktDe.NodeReplicator:NodeReplication':
+              factoryObjectName: PunktDe\NodeReplicator\CatchUpHook\NodeReplicationCatchUpHookFactory
+
+PunktDe:
+  NodeReplicator:
+    queue:
+      # When true, spawns replication command in background from onAfterCatchUp (near-immediate processing)
+      triggerViaShell: false
+      # Optional: custom command (default: flow nodereplicator:replication:processqueue)
+      # shellCommand: "flow nodereplicator:replication:processqueue"
