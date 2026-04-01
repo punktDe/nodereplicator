@@ -28,4 +28,14 @@ class ReplicationTaskRepository extends Repository
         $query->matching($query->equals('processedAt', null));
         return $query->count() > 0;
     }
+
+    /**
+     * @return list<\PunktDe\NodeReplicator\Domain\Model\ReplicationTask>
+     */
+    public function findProcessed(): array
+    {
+        $query = $this->createQuery();
+        $query->matching($query->logicalNot($query->equals('processedAt', null)));
+        return $query->execute()->toArray();
+    }
 }

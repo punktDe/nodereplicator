@@ -72,4 +72,17 @@ class ReplicationQueue
         $this->replicationTaskRepository->update($task);
         $this->persistenceManager->persistAll();
     }
+
+    public function removeProcessedTasks(): int
+    {
+        $tasks = $this->replicationTaskRepository->findProcessed();
+        foreach ($tasks as $task) {
+            $this->persistenceManager->remove($task);
+        }
+        if ($tasks !== []) {
+            $this->persistenceManager->persistAll();
+        }
+
+        return count($tasks);
+    }
 }

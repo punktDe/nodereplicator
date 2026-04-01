@@ -22,12 +22,6 @@ class ReplicationCommandController extends CommandController
         parent::__construct();
     }
 
-    /**
-     * Process pending replication tasks from the queue
-     *
-     * This command processes all pending replication tasks that were enqueued by the CatchUp hook.
-     * It can be invoked manually, via cron, or triggered by the optional shell trigger in onAfterCatchUp.
-     */
     public function processQueueCommand(): void
     {
         $tasks = $this->replicationQueue->getPendingTasks();
@@ -47,5 +41,12 @@ class ReplicationCommandController extends CommandController
         }
 
         $this->outputLine('Done.');
+    }
+
+
+    public function removeProcessedCommand(): void
+    {
+        $removed = $this->replicationQueue->removeProcessedTasks();
+        $this->outputLine('Removed %d processed replication task(s).', [$removed]);
     }
 }
