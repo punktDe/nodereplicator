@@ -21,13 +21,14 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\EventStore\Model\EventEnvelope;
 use PunktDe\NodeReplicator\Domain\Model\ReplicationTask;
+use PunktDe\NodeReplicator\Domain\Service\ReplicationInternalContext;
 use PunktDe\NodeReplicator\Domain\Service\ReplicationQueue;
 use Psr\Log\LoggerInterface;
 
 final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 {
     /**
-     * @var array<int, array{nodeAggregateId: string, workspaceName: string, originDimensionSpacePoint: string, eventType: string, propertyName?: string|null, propertyValue?: mixed, updateEmptyOnly?: bool}>
+     * @var array<int, array{nodeAggregateId: string, workspaceName: string, originDimensionSpacePoint: string, eventType: string, propertyName?: string|null, propertyValue?: mixed, updateEmptyOnly?: bool, createHidden?: bool}>
      */
     private array $pendingTasks = [];
 
@@ -35,6 +36,7 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
         private readonly ContentGraphReadModelInterface $contentGraphReadModel,
         private readonly NodeTypeManager $nodeTypeManager,
         private readonly ReplicationQueue $replicationQueue,
+        private readonly ReplicationInternalContext $replicationInternalContext,
         private readonly LoggerInterface $logger,
         private readonly array $queueSettings,
     ) {
@@ -77,6 +79,9 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 
     private function handleNodeCreated(NodeAggregateWithNodeWasCreated $event): void
     {
+        if ($this->replicationInternalContext->isActive()) {
+            return;
+        }
         $nodeType = $this->nodeTypeManager->getNodeType($event->nodeTypeName);
         if ($nodeType === null || !$this->hasReplicationConfig($nodeType)) {
             return;
@@ -96,6 +101,9 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 
     private function handleNodePropertiesSet(NodePropertiesWereSet $event): void
     {
+        if ($this->replicationInternalContext->isActive()) {
+            return;
+        }
         $subgraph = $this->contentGraphReadModel->getContentGraph($event->workspaceName)
             ->getSubgraph(
                 $event->originDimensionSpacePoint->toDimensionSpacePoint(),
@@ -132,6 +140,9 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 
     private function handleNodeRemovedBefore(NodeAggregateWasRemoved $event): void
     {
+        if ($this->replicationInternalContext->isActive()) {
+            return;
+        }
         $points = $event->affectedCoveredDimensionSpacePoints->points;
         if (empty($points)) {
             return;

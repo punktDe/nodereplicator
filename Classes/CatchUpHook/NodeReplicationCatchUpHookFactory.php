@@ -13,6 +13,7 @@ use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryInterfa
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\Flow\Annotations as Flow;
 use Psr\Log\LoggerInterface;
+use PunktDe\NodeReplicator\Domain\Service\ReplicationInternalContext;
 use PunktDe\NodeReplicator\Domain\Service\ReplicationQueue;
 
 /**
@@ -25,6 +26,7 @@ final class NodeReplicationCatchUpHookFactory implements CatchUpHookFactoryInter
 
     public function __construct(
         private readonly ReplicationQueue $replicationQueue,
+        private readonly ReplicationInternalContext $replicationInternalContext,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -43,6 +45,7 @@ final class NodeReplicationCatchUpHookFactory implements CatchUpHookFactoryInter
             $projectionState,
             $dependencies->nodeTypeManager,
             $this->replicationQueue,
+            $this->replicationInternalContext,
             $this->logger,
             $this->queueSettings,
         );

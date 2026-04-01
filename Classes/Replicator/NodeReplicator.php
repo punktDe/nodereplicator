@@ -28,6 +28,7 @@ use Neos\Flow\Log\Utility\LogEnvironment;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use PunktDe\NodeReplicator\Domain\Model\ReplicationTask;
+use PunktDe\NodeReplicator\Domain\Service\ReplicationInternalContext;
 
 #[Flow\Scope(value: "singleton")]
 class NodeReplicator
@@ -38,68 +39,79 @@ class NodeReplicator
     public function __construct(
         protected readonly LoggerInterface $logger,
         protected readonly ContentRepositoryRegistry $contentRepositoryRegistry,
+        protected readonly ReplicationInternalContext $replicationInternalContext,
     ) {
     }
 
     public function createNodeVariants(Node $node, bool $createHidden = false): void
     {
-        $nodeAddress = NodeAddress::fromNode($node);
-        $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
-        $workspaceName = $nodeAddress->workspaceName;
-        $sourceOrigin = $node->originDimensionSpacePoint;
+        $this->replicationInternalContext->enter();
+        try {
+            $nodeAddress = NodeAddress::fromNode($node);
+            $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
+            $workspaceName = $nodeAddress->workspaceName;
+            $sourceOrigin = $node->originDimensionSpacePoint;
 
-        $targetOrigins = $this->getTargetOriginDimensionSpacePoints($contentRepository, $node);
-        foreach ($targetOrigins as $targetOrigin) {
-            $subgraph = $contentRepository->getContentGraph($workspaceName)->getSubgraph(
-                $targetOrigin->toDimensionSpacePoint(),
-                VisibilityConstraints::createEmpty()
-            );
-            if ($subgraph->findNodeById($nodeAddress->aggregateId) !== null) {
-                $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, 'Node was not replicated, as it already exists in target dimension', LogLevel::DEBUG);
-                continue;
-            }
+            $targetOrigins = $this->getTargetOriginDimensionSpacePoints($contentRepository, $node);
+            foreach ($targetOrigins as $targetOrigin) {
+                $subgraph = $contentRepository->getContentGraph($workspaceName)->getSubgraph(
+                    $targetOrigin->toDimensionSpacePoint(),
+                    VisibilityConstraints::createEmpty()
+                );
+                if ($subgraph->findNodeById($nodeAddress->aggregateId) !== null) {
+                    $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, 'Node was not replicated, as it already exists in target dimension', LogLevel::DEBUG);
+                    continue;
+                }
 
-            $contentRepository->handle(CreateNodeVariant::create(
-                $workspaceName,
-                $nodeAddress->aggregateId,
-                $sourceOrigin,
-                $targetOrigin
-            ));
-            $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, 'Node was replicated to target dimension.');
-
-            if ($createHidden) {
-                $contentRepository->handle(SetNodeProperties::create(
+                $contentRepository->handle(CreateNodeVariant::create(
                     $workspaceName,
                     $nodeAddress->aggregateId,
-                    $targetOrigin,
-                    PropertyValuesToWrite::fromArray(['hidden' => true])
+                    $sourceOrigin,
+                    $targetOrigin
                 ));
+                $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, 'Node was replicated to target dimension.');
+
+                if ($createHidden) {
+                    $contentRepository->handle(SetNodeProperties::create(
+                        $workspaceName,
+                        $nodeAddress->aggregateId,
+                        $targetOrigin,
+                        PropertyValuesToWrite::fromArray(['hidden' => true])
+                    ));
+                }
             }
+        } finally {
+            $this->replicationInternalContext->leave();
         }
     }
 
     public function removeNodeVariants(Node $node): void
     {
-        $nodeAddress = NodeAddress::fromNode($node);
-        $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
-        $targetOrigins = $this->getTargetOriginDimensionSpacePoints($contentRepository, $node);
+        $this->replicationInternalContext->enter();
+        try {
+            $nodeAddress = NodeAddress::fromNode($node);
+            $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
+            $targetOrigins = $this->getTargetOriginDimensionSpacePoints($contentRepository, $node);
 
-        foreach ($targetOrigins as $targetOrigin) {
-            $subgraph = $contentRepository->getContentGraph($nodeAddress->workspaceName)->getSubgraph(
-                $targetOrigin->toDimensionSpacePoint(),
-                VisibilityConstraints::createEmpty()
-            );
-            if ($subgraph->findNodeById($nodeAddress->aggregateId) === null) {
-                continue;
+            foreach ($targetOrigins as $targetOrigin) {
+                $subgraph = $contentRepository->getContentGraph($nodeAddress->workspaceName)->getSubgraph(
+                    $targetOrigin->toDimensionSpacePoint(),
+                    VisibilityConstraints::createEmpty()
+                );
+                if ($subgraph->findNodeById($nodeAddress->aggregateId) === null) {
+                    continue;
+                }
+
+                $contentRepository->handle(RemoveNodeAggregate::create(
+                    $nodeAddress->workspaceName,
+                    $nodeAddress->aggregateId,
+                    $targetOrigin->toDimensionSpacePoint(),
+                    NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS
+                ));
+                $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, 'Node variant was removed.');
             }
-
-            $contentRepository->handle(RemoveNodeAggregate::create(
-                $nodeAddress->workspaceName,
-                $nodeAddress->aggregateId,
-                $targetOrigin->toDimensionSpacePoint(),
-                NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS
-            ));
-            $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, 'Node variant was removed.');
+        } finally {
+            $this->replicationInternalContext->leave();
         }
     }
 
@@ -110,6 +122,7 @@ class NodeReplicator
             return;
         }
         self::$currentlyUpdatingNodeIds[$nodeAddress->aggregateId->value] = true;
+        $this->replicationInternalContext->enter();
 
         try {
             $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
@@ -138,6 +151,7 @@ class NodeReplicator
                 $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, sprintf('Property %s of the node was updated', $propertyName));
             }
         } finally {
+            $this->replicationInternalContext->leave();
             unset(self::$currentlyUpdatingNodeIds[$nodeAddress->aggregateId->value]);
         }
     }
@@ -153,6 +167,7 @@ class NodeReplicator
             return;
         }
         self::$currentlyUpdatingNodeIds[$nodeAddress->aggregateId->value] = true;
+        $this->replicationInternalContext->enter();
 
         try {
             $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
@@ -194,6 +209,7 @@ class NodeReplicator
                 $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, 'Declared properties replicated from source dimension.');
             }
         } finally {
+            $this->replicationInternalContext->leave();
             unset(self::$currentlyUpdatingNodeIds[$nodeAddress->aggregateId->value]);
         }
     }
@@ -214,13 +230,23 @@ class NodeReplicator
 
         if ($task->getEventType() === ReplicationTask::EVENT_TYPE_CREATE) {
             if ($node === null) {
-                $this->logger->warning('Replication task: node not found for create', ['task' => $task->getNodeAggregateId()]);
+                $this->logReplicationAction(
+                    $originDimensionSpacePoint,
+                    $task->getNodeAggregateId(),
+                    'Replication task: node not found for create.',
+                    LogLevel::WARNING
+                );
                 return;
             }
             $this->createNodeVariants($node, $task->isCreateHidden());
         } elseif ($task->getEventType() === ReplicationTask::EVENT_TYPE_UPDATE) {
             if ($node === null) {
-                $this->logger->warning('Replication task: node not found for update', ['task' => $task->getNodeAggregateId()]);
+                $this->logReplicationAction(
+                    $originDimensionSpacePoint,
+                    $task->getNodeAggregateId(),
+                    'Replication task: node not found for update.',
+                    LogLevel::WARNING
+                );
                 return;
             }
             $propertyValue = $task->getPropertyValue() !== null ? unserialize($task->getPropertyValue()) : null;
@@ -228,17 +254,27 @@ class NodeReplicator
         } elseif ($task->getEventType() === ReplicationTask::EVENT_TYPE_REMOVE) {
             $nodeAggregate = $contentGraph->findNodeAggregateById($nodeAggregateId);
             if ($nodeAggregate === null) {
-                $this->logger->debug('Replication task remove: node aggregate already fully removed', ['task' => $task->getNodeAggregateId()]);
+                $this->logReplicationAction(
+                    $originDimensionSpacePoint,
+                    $task->getNodeAggregateId(),
+                    'Replication task remove: node aggregate already fully removed.',
+                    LogLevel::DEBUG
+                );
                 return;
             }
-            foreach ($nodeAggregate->occupiedDimensionSpacePoints as $occupiedOrigin) {
-                $contentRepository->handle(RemoveNodeAggregate::create(
-                    $workspaceName,
-                    $nodeAggregateId,
-                    $occupiedOrigin->toDimensionSpacePoint(),
-                    NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS
-                ));
-                $this->logReplicationAction($occupiedOrigin, $nodeAggregateId->value, 'Node variant was removed.');
+            $this->replicationInternalContext->enter();
+            try {
+                foreach ($nodeAggregate->occupiedDimensionSpacePoints as $occupiedOrigin) {
+                    $contentRepository->handle(RemoveNodeAggregate::create(
+                        $workspaceName,
+                        $nodeAggregateId,
+                        $occupiedOrigin->toDimensionSpacePoint(),
+                        NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS
+                    ));
+                    $this->logReplicationAction($occupiedOrigin, $nodeAggregateId->value, 'Node variant was removed.');
+                }
+            } finally {
+                $this->replicationInternalContext->leave();
             }
         }
     }
