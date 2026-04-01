@@ -142,6 +142,62 @@ class NodeReplicator
         }
     }
 
+    /**
+     * Writes every declared property value from the source dimension variant onto all sibling dimension variants.
+     * Used when {@see createNodeVariants} only creates structure; target variants stay empty until properties are set.
+     */
+    public function replicateAllDeclaredPropertiesToTargetDimensions(Node $sourceNode): void
+    {
+        $nodeAddress = NodeAddress::fromNode($sourceNode);
+        if (isset(self::$currentlyUpdatingNodeIds[$nodeAddress->aggregateId->value])) {
+            return;
+        }
+        self::$currentlyUpdatingNodeIds[$nodeAddress->aggregateId->value] = true;
+
+        try {
+            $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
+            $nodeType = $contentRepository->getNodeTypeManager()->getNodeType($sourceNode->nodeTypeName->value);
+            if ($nodeType === null) {
+                return;
+            }
+
+            $values = [];
+            foreach (array_keys($nodeType->getProperties()) as $propertyName) {
+                if (!$sourceNode->hasProperty($propertyName)) {
+                    continue;
+                }
+                $values[$propertyName] = $sourceNode->getProperty($propertyName);
+            }
+            if ($values === []) {
+                return;
+            }
+
+            $toWrite = PropertyValuesToWrite::fromArray($values);
+            $targetOrigins = $this->getTargetOriginDimensionSpacePoints($contentRepository, $sourceNode);
+
+            foreach ($targetOrigins as $targetOrigin) {
+                $subgraph = $contentRepository->getContentGraph($nodeAddress->workspaceName)->getSubgraph(
+                    $targetOrigin->toDimensionSpacePoint(),
+                    VisibilityConstraints::createEmpty()
+                );
+                if ($subgraph->findNodeById($nodeAddress->aggregateId) === null) {
+                    $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, 'Properties were not replicated; variant missing.', LogLevel::DEBUG);
+                    continue;
+                }
+
+                $contentRepository->handle(SetNodeProperties::create(
+                    $nodeAddress->workspaceName,
+                    $nodeAddress->aggregateId,
+                    $targetOrigin,
+                    $toWrite
+                ));
+                $this->logReplicationAction($targetOrigin, $nodeAddress->aggregateId->value, 'Declared properties replicated from source dimension.');
+            }
+        } finally {
+            unset(self::$currentlyUpdatingNodeIds[$nodeAddress->aggregateId->value]);
+        }
+    }
+
     public function processTask(ReplicationTask $task): void
     {
         $contentRepository = $this->contentRepositoryRegistry->get(ContentRepositoryId::fromString('default'));
