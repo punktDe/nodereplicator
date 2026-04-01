@@ -17,6 +17,7 @@ use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
+use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\EventStore\Model\EventEnvelope;
@@ -82,6 +83,9 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
         if ($this->replicationInternalContext->isActive()) {
             return;
         }
+        if (!$this->isEventWorkspaceRelevant($event->workspaceName)) {
+            return;
+        }
         $nodeType = $this->nodeTypeManager->getNodeType($event->nodeTypeName);
         if ($nodeType === null || !$this->hasReplicationConfig($nodeType)) {
             return;
@@ -102,6 +106,9 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
     private function handleNodePropertiesSet(NodePropertiesWereSet $event): void
     {
         if ($this->replicationInternalContext->isActive()) {
+            return;
+        }
+        if (!$this->isEventWorkspaceRelevant($event->workspaceName)) {
             return;
         }
         $subgraph = $this->contentGraphReadModel->getContentGraph($event->workspaceName)
@@ -143,6 +150,9 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
         if ($this->replicationInternalContext->isActive()) {
             return;
         }
+        if (!$this->isEventWorkspaceRelevant($event->workspaceName)) {
+            return;
+        }
         $points = $event->affectedCoveredDimensionSpacePoints->points;
         if (empty($points)) {
             return;
@@ -173,6 +183,14 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
             'originDimensionSpacePoint' => json_encode($originDimensionSpacePoint),
             'eventType' => ReplicationTask::EVENT_TYPE_REMOVE,
         ];
+    }
+
+    private function isEventWorkspaceRelevant(WorkspaceName $workspaceName): bool
+    {
+        if (!($this->queueSettings['liveWorkspaceOnly'] ?? false)) {
+            return true;
+        }
+        return $workspaceName->isLive();
     }
 
     private function hasReplicationConfig(NodeType $nodeType): bool

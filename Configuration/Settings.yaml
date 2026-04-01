@@ -10,6 +10,9 @@ Neos:
 PunktDe:
   NodeReplicator:
     queue:
+      # When true, only CR events in the live workspace enqueue replication tasks (user workspaces are ignored).
+      # When false, changes in every workspace are considered.
+      liveWorkspaceOnly: true
       # When true, spawns replication command in background from onAfterCatchUp (near-immediate processing)
       triggerViaShell: false
       # Optional: custom command (default: flow nodereplicator:replication:processqueue)

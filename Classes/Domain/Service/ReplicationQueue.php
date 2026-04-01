@@ -8,6 +8,7 @@ namespace PunktDe\NodeReplicator\Domain\Service;
  *  All rights reserved.
  */
 
+use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Persistence\PersistenceManagerInterface;
 use PunktDe\NodeReplicator\Domain\Model\ReplicationTask;
@@ -16,6 +17,9 @@ use PunktDe\NodeReplicator\Domain\Repository\ReplicationTaskRepository;
 #[Flow\Scope(value: "singleton")]
 class ReplicationQueue
 {
+    #[Flow\InjectConfiguration(path: 'queue', package: 'PunktDe.NodeReplicator')]
+    protected array $queueSettings = [];
+
     public function __construct(
         private readonly ReplicationTaskRepository $replicationTaskRepository,
         private readonly PersistenceManagerInterface $persistenceManager,
@@ -32,6 +36,9 @@ class ReplicationQueue
         bool $updateEmptyOnly = false,
         bool $createHidden = false,
     ): void {
+        if (($this->queueSettings['liveWorkspaceOnly'] ?? false) && !WorkspaceName::fromString($workspaceName)->isLive()) {
+            return;
+        }
         $task = new ReplicationTask();
         $task->setNodeAggregateId($nodeAggregateId);
         $task->setWorkspaceName($workspaceName);
