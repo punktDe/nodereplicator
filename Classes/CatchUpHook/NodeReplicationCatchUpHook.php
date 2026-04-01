@@ -21,6 +21,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\EventStore\Model\EventEnvelope;
+use Neos\Flow\Log\Utility\LogEnvironment;
 use PunktDe\NodeReplicator\Domain\Model\ReplicationTask;
 use PunktDe\NodeReplicator\Domain\Service\ReplicationInternalContext;
 use PunktDe\NodeReplicator\Domain\Service\ReplicationQueue;
@@ -71,11 +72,6 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
     public function onAfterCatchUp(): void
     {
         $this->flushPendingTasks();
-
-        $triggerViaShell = $this->queueSettings['triggerViaShell'] ?? false;
-        if ($triggerViaShell && $this->replicationQueue->hasPendingTasks()) {
-            $this->triggerShellCommand();
-        }
     }
 
     private function handleNodeCreated(NodeAggregateWithNodeWasCreated $event): void
@@ -228,29 +224,12 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
                     $task['createHidden'] ?? false,
                 );
             } catch (\Throwable $e) {
-                $this->logger->error('Failed to enqueue replication task: ' . $e->getMessage(), ['task' => $task]);
+                $this->logger->error(
+                    sprintf('Failed to enqueue replication task: %s', $e->getMessage()),
+                    LogEnvironment::fromMethodName(__METHOD__)
+                );
             }
         }
         $this->pendingTasks = [];
-    }
-
-    private function triggerShellCommand(): void
-    {
-        $shellCommand = $this->queueSettings['shellCommand'] ?? 'flow nodereplicator:replication:processqueue';
-        if (!function_exists('exec')) {
-            $this->logger->warning('Cannot trigger replication: exec() is disabled in php.ini');
-            return;
-        }
-
-        $flowPathRoot = defined('FLOW_PATH_ROOT') ? FLOW_PATH_ROOT : getcwd();
-        $command = sprintf(
-            'cd %s && ./%s > /dev/null 2>&1 &',
-            escapeshellarg($flowPathRoot),
-            escapeshellarg($shellCommand)
-        );
-        exec($command, $output, $returnCode);
-        if ($returnCode !== 0) {
-            $this->logger->warning('Failed to trigger replication: ' . implode(' ', $output));
-        }
     }
 }

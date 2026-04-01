@@ -264,15 +264,21 @@ class NodeReplicator
             }
             $this->replicationInternalContext->enter();
             try {
+                $referenceOrigin = null;
                 foreach ($nodeAggregate->occupiedDimensionSpacePoints as $occupiedOrigin) {
-                    $contentRepository->handle(RemoveNodeAggregate::create(
-                        $workspaceName,
-                        $nodeAggregateId,
-                        $occupiedOrigin->toDimensionSpacePoint(),
-                        NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS
-                    ));
-                    $this->logReplicationAction($occupiedOrigin, $nodeAggregateId->value, 'Node variant was removed.');
+                    $referenceOrigin = $occupiedOrigin;
+                    break;
                 }
+                if ($referenceOrigin === null) {
+                    return;
+                }
+                $contentRepository->handle(RemoveNodeAggregate::create(
+                    $workspaceName,
+                    $nodeAggregateId,
+                    $referenceOrigin->toDimensionSpacePoint(),
+                    NodeVariantSelectionStrategy::STRATEGY_ALL_VARIANTS
+                ));
+                $this->logReplicationAction($referenceOrigin, $nodeAggregateId->value, 'Node aggregate fully removed (replicated delete).');
             } finally {
                 $this->replicationInternalContext->leave();
             }
