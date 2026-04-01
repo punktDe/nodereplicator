@@ -9,6 +9,7 @@ namespace PunktDe\NodeReplicator\Domain\Model;
  */
 
 use Neos\Flow\Annotations as Flow;
+use Doctrine\ORM\Mapping as ORM;
 
 #[Flow\Entity]
 class ReplicationTask
@@ -39,37 +40,43 @@ class ReplicationTask
 
     /**
      * @var string|null
+     * @ORM\Column(nullable=true)
      */
     protected ?string $propertyName = null;
 
     /**
      * @var string|null Serialized property value for update events
+     * @ORM\Column(nullable=true)
      */
     protected ?string $propertyValue = null;
 
     /**
      * @var bool
+     * @ORM\Column(type="boolean", options={"default": false})
      */
     protected bool $updateEmptyOnly = false;
 
     /**
      * @var bool For create events: create as hidden
+     * @ORM\Column(type="boolean", options={"default": false})
      */
     protected bool $createHidden = false;
 
     /**
-     * @var \DateTimeImmutable|null
+     * @var \DateTime|null
+     * @ORM\Column(nullable=true)
      */
-    protected ?\DateTimeImmutable $processedAt = null;
+    protected ?\DateTime $processedAt = null;
 
     /**
-     * @var \DateTimeImmutable
+     * @var \DateTime
+     * @ORM\Column(type="datetime", nullable=false)
      */
-    protected \DateTimeImmutable $createdAt;
+    protected \DateTime $createdAt;
 
     public function __construct()
     {
-        $this->createdAt = new \DateTimeImmutable();
+        $this->createdAt = new \DateTime();
     }
 
     public function getNodeAggregateId(): string
@@ -152,22 +159,22 @@ class ReplicationTask
         $this->createHidden = $createHidden;
     }
 
-    public function getProcessedAt(): ?\DateTimeImmutable
+    public function getProcessedAt(): ?\DateTime
     {
         return $this->processedAt;
     }
 
-    public function setProcessedAt(?\DateTimeImmutable $processedAt): void
+    public function setProcessedAt(?\DateTime $processedAt): void
     {
         $this->processedAt = $processedAt;
     }
 
     public function markProcessed(): void
     {
-        $this->processedAt = new \DateTimeImmutable();
+        $this->processedAt = new \DateTime();
     }
 
-    public function getCreatedAt(): \DateTimeImmutable
+    public function getCreatedAt(): \DateTime
     {
         return $this->createdAt;
     }
