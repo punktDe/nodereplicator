@@ -41,6 +41,7 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
         private readonly ReplicationInternalContext $replicationInternalContext,
         private readonly LoggerInterface $logger,
         private readonly array $queueSettings,
+        private readonly string $contentRepositoryId,
     ) {
     }
 
@@ -90,10 +91,15 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
             return;
         }
 
+        $originDimensionSpacePointJson = $this->encodeOriginDimensionSpacePointJson($event->originDimensionSpacePoint);
+        if ($originDimensionSpacePointJson === null) {
+            return;
+        }
+
         $this->pendingTasks[] = [
             'nodeAggregateId' => $event->nodeAggregateId->value,
             'workspaceName' => $event->workspaceName->value,
-            'originDimensionSpacePoint' => json_encode($event->originDimensionSpacePoint),
+            'originDimensionSpacePoint' => $originDimensionSpacePointJson,
             'eventType' => ReplicationTask::EVENT_TYPE_CREATE,
             'createHidden' => $this->nodeCreateHiddenEnabled($nodeType),
         ];
@@ -129,10 +135,14 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
                 continue;
             }
             $propertyValue = $node->getProperty($propertyName);
+            $originDimensionSpacePointJson = $this->encodeOriginDimensionSpacePointJson($event->originDimensionSpacePoint);
+            if ($originDimensionSpacePointJson === null) {
+                continue;
+            }
             $this->pendingTasks[] = [
                 'nodeAggregateId' => $event->nodeAggregateId->value,
                 'workspaceName' => $event->workspaceName->value,
-                'originDimensionSpacePoint' => json_encode($event->originDimensionSpacePoint),
+                'originDimensionSpacePoint' => $originDimensionSpacePointJson,
                 'eventType' => ReplicationTask::EVENT_TYPE_UPDATE,
                 'propertyName' => $propertyName,
                 'propertyValue' => $propertyValue,
@@ -173,10 +183,14 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
         }
 
         $originDimensionSpacePoint = OriginDimensionSpacePoint::fromDimensionSpacePoint($firstPoint);
+        $originDimensionSpacePointJson = $this->encodeOriginDimensionSpacePointJson($originDimensionSpacePoint);
+        if ($originDimensionSpacePointJson === null) {
+            return;
+        }
         $this->pendingTasks[] = [
             'nodeAggregateId' => $event->nodeAggregateId->value,
             'workspaceName' => $event->workspaceName->value,
-            'originDimensionSpacePoint' => json_encode($originDimensionSpacePoint),
+            'originDimensionSpacePoint' => $originDimensionSpacePointJson,
             'eventType' => ReplicationTask::EVENT_TYPE_REMOVE,
         ];
     }
@@ -209,6 +223,22 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
         return (bool)($nodeType->getConfiguration('options.replication.structure.remove') ?? false);
     }
 
+    /**
+     * @return string|null JSON string, or null if encoding failed (error logged).
+     */
+    private function encodeOriginDimensionSpacePointJson(OriginDimensionSpacePoint $originDimensionSpacePoint): ?string
+    {
+        try {
+            return json_encode($originDimensionSpacePoint, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            $this->logger->error(
+                sprintf('Failed to JSON-encode origin dimension space point: %s', $e->getMessage()),
+                LogEnvironment::fromMethodName(__METHOD__)
+            );
+            return null;
+        }
+    }
+
     private function flushPendingTasks(): void
     {
         foreach ($this->pendingTasks as $task) {
@@ -218,6 +248,7 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
                     $task['workspaceName'],
                     $task['originDimensionSpacePoint'],
                     $task['eventType'],
+                    $this->contentRepositoryId,
                     $task['propertyName'] ?? null,
                     $task['propertyValue'] ?? null,
                     $task['updateEmptyOnly'] ?? false,

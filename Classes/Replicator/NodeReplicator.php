@@ -216,7 +216,9 @@ class NodeReplicator
 
     public function processTask(ReplicationTask $task): void
     {
-        $contentRepository = $this->contentRepositoryRegistry->get(ContentRepositoryId::fromString('default'));
+        $contentRepository = $this->contentRepositoryRegistry->get(
+            ContentRepositoryId::fromString($task->getContentRepositoryId())
+        );
         $workspaceName = WorkspaceName::fromString($task->getWorkspaceName());
         $nodeAggregateId = NodeAggregateId::fromString($task->getNodeAggregateId());
         $originDimensionSpacePoint = OriginDimensionSpacePoint::fromArray(json_decode($task->getOriginDimensionSpacePoint(), true, 512, JSON_THROW_ON_ERROR));
@@ -249,8 +251,18 @@ class NodeReplicator
                 );
                 return;
             }
-            $propertyValue = $task->getPropertyValue() !== null ? unserialize($task->getPropertyValue()) : null;
-            $this->updateContent($node, $task->getPropertyName() ?? '', $propertyValue, $task->isUpdateEmptyOnly());
+            $propertyName = $task->getPropertyName();
+            if ($propertyName === null || $propertyName === '') {
+                $this->logReplicationAction(
+                    $originDimensionSpacePoint,
+                    $task->getNodeAggregateId(),
+                    'Replication task: update skipped; property name missing.',
+                    LogLevel::WARNING
+                );
+                return;
+            }
+            $propertyValue = $this->decodeStoredPropertyValue($task->getPropertyValue());
+            $this->updateContent($node, $propertyName, $propertyValue, $task->isUpdateEmptyOnly());
         } elseif ($task->getEventType() === ReplicationTask::EVENT_TYPE_REMOVE) {
             $nodeAggregate = $contentGraph->findNodeAggregateById($nodeAggregateId);
             if ($nodeAggregate === null) {
@@ -325,5 +337,20 @@ class NodeReplicator
         }
         $dimensionString = implode('|', $parts);
         $this->logger->log($logLevel, sprintf('[NodeIdentifier: %s, TargetDimension: %s] %s', $nodeId, $dimensionString, $message), LogEnvironment::fromMethodName(__METHOD__));
+    }
+
+    /**
+     * @param string|null $stored JSON from {@see ReplicationQueue}; legacy tasks may still be PHP-serialized
+     */
+    private function decodeStoredPropertyValue(?string $stored): mixed
+    {
+        if ($stored === null || $stored === '') {
+            return null;
+        }
+        try {
+            return json_decode($stored, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return unserialize($stored, ['allowed_classes' => false]);
+        }
     }
 }

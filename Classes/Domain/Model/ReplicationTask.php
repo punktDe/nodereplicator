@@ -29,6 +29,11 @@ class ReplicationTask
     protected string $workspaceName;
 
     /**
+     * @var string
+     */
+    protected string $contentRepositoryId;
+
+    /**
      * @var string JSON-encoded OriginDimensionSpacePoint
      */
     protected string $originDimensionSpacePoint;
@@ -45,8 +50,8 @@ class ReplicationTask
     protected ?string $propertyName = null;
 
     /**
-     * @var string|null Serialized property value for update events
-     * @ORM\Column(nullable=true)
+     * @var string|null JSON-encoded property value for update events (legacy rows may still use PHP serialize)
+     * @ORM\Column(type="text", nullable=true)
      */
     protected ?string $propertyValue = null;
 
@@ -74,9 +79,10 @@ class ReplicationTask
      */
     protected \DateTime $createdAt;
 
-    public function __construct()
+    public function __construct(string $contentRepositoryId)
     {
         $this->createdAt = new \DateTime();
+        $this->contentRepositoryId = $contentRepositoryId;
     }
 
     public function getNodeAggregateId(): string
@@ -97,6 +103,16 @@ class ReplicationTask
     public function setWorkspaceName(string $workspaceName): void
     {
         $this->workspaceName = $workspaceName;
+    }
+
+    public function getContentRepositoryId(): string
+    {
+        return $this->contentRepositoryId;
+    }
+
+    public function setContentRepositoryId(string $contentRepositoryId): void
+    {
+        $this->contentRepositoryId = $contentRepositoryId;
     }
 
     public function getOriginDimensionSpacePoint(): string

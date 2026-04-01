@@ -48,6 +48,7 @@ final class NodeReplicationCatchUpHookFactory implements CatchUpHookFactoryInter
             $this->replicationInternalContext,
             $this->logger,
             $this->queueSettings,
+            $dependencies->contentRepositoryId->value,
         );
     }
 }

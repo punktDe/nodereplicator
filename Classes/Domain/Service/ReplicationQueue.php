@@ -31,6 +31,7 @@ class ReplicationQueue
         string $workspaceName,
         string $originDimensionSpacePoint,
         string $eventType,
+        string $contentRepositoryId,
         ?string $propertyName = null,
         mixed $propertyValue = null,
         bool $updateEmptyOnly = false,
@@ -39,13 +40,17 @@ class ReplicationQueue
         if (($this->queueSettings['liveWorkspaceOnly'] ?? false) && !WorkspaceName::fromString($workspaceName)->isLive()) {
             return;
         }
-        $task = new ReplicationTask();
+        $task = new ReplicationTask($contentRepositoryId);
         $task->setNodeAggregateId($nodeAggregateId);
         $task->setWorkspaceName($workspaceName);
         $task->setOriginDimensionSpacePoint($originDimensionSpacePoint);
         $task->setEventType($eventType);
         $task->setPropertyName($propertyName);
-        $task->setPropertyValue($propertyValue !== null ? serialize($propertyValue) : null);
+        $task->setPropertyValue(
+            $propertyValue !== null
+                ? json_encode($propertyValue, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+                : null
+        );
         $task->setUpdateEmptyOnly($updateEmptyOnly);
         $task->setCreateHidden($createHidden);
 
@@ -79,7 +84,7 @@ class ReplicationQueue
         foreach ($tasks as $task) {
             $this->persistenceManager->remove($task);
         }
-        if ($tasks !== []) {
+        if (count($tasks) > 0) {
             $this->persistenceManager->persistAll();
         }
 
