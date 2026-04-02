@@ -8,21 +8,22 @@ namespace PunktDe\NodeReplicator\Domain\Service;
  *  All rights reserved.
  */
 
+use Flowpack\JobQueue\Common\Job\JobManager;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\Flow\Annotations as Flow;
-use Neos\Flow\Persistence\PersistenceManagerInterface;
 use PunktDe\NodeReplicator\Domain\Model\ReplicationTask;
-use PunktDe\NodeReplicator\Domain\Repository\ReplicationTaskRepository;
+use PunktDe\NodeReplicator\Job\ProcessReplicationJob;
 
-#[Flow\Scope(value: "singleton")]
+#[Flow\Scope(value: 'singleton')]
 class ReplicationQueue
 {
+    private const DEFAULT_QUEUE_NAME = 'punktde-nodereplicator-replication';
+
     #[Flow\InjectConfiguration(path: 'queue', package: 'PunktDe.NodeReplicator')]
     protected array $queueSettings = [];
 
     public function __construct(
-        private readonly ReplicationTaskRepository $replicationTaskRepository,
-        private readonly PersistenceManagerInterface $persistenceManager,
+        private readonly JobManager $jobManager,
     ) {
     }
 
@@ -40,54 +41,25 @@ class ReplicationQueue
         if (($this->queueSettings['liveWorkspaceOnly'] ?? false) && !WorkspaceName::fromString($workspaceName)->isLive()) {
             return;
         }
-        $task = new ReplicationTask($contentRepositoryId);
-        $task->setNodeAggregateId($nodeAggregateId);
-        $task->setWorkspaceName($workspaceName);
-        $task->setOriginDimensionSpacePoint($originDimensionSpacePoint);
-        $task->setEventType($eventType);
-        $task->setPropertyName($propertyName);
-        $task->setPropertyValue(
-            $propertyValue !== null
-                ? json_encode($propertyValue, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
-                : null
+
+        $encodedPropertyValue = null;
+        if ($propertyValue !== null) {
+            $encodedPropertyValue = json_encode($propertyValue, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        }
+
+        $task = new ReplicationTask(
+            $contentRepositoryId,
+            $nodeAggregateId,
+            $workspaceName,
+            $originDimensionSpacePoint,
+            $eventType,
+            $propertyName,
+            $encodedPropertyValue,
+            $updateEmptyOnly,
+            $createHidden,
         );
-        $task->setUpdateEmptyOnly($updateEmptyOnly);
-        $task->setCreateHidden($createHidden);
 
-        $this->replicationTaskRepository->add($task);
-        $this->persistenceManager->persistAll();
-    }
-
-    /**
-     * @return ReplicationTask[]
-     */
-    public function getPendingTasks(): array
-    {
-        return $this->replicationTaskRepository->findPending();
-    }
-
-    public function hasPendingTasks(): bool
-    {
-        return $this->replicationTaskRepository->hasPendingTasks();
-    }
-
-    public function markProcessed(ReplicationTask $task): void
-    {
-        $task->markProcessed();
-        $this->replicationTaskRepository->update($task);
-        $this->persistenceManager->persistAll();
-    }
-
-    public function removeProcessedTasks(): int
-    {
-        $tasks = $this->replicationTaskRepository->findProcessed();
-        foreach ($tasks as $task) {
-            $this->persistenceManager->remove($task);
-        }
-        if (count($tasks) > 0) {
-            $this->persistenceManager->persistAll();
-        }
-
-        return count($tasks);
+        $queueName = $this->queueSettings['flowpackQueueName'] ?? self::DEFAULT_QUEUE_NAME;
+        $this->jobManager->queue($queueName, new ProcessReplicationJob($task));
     }
 }

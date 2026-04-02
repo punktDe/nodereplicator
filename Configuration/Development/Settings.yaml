@@ -1,0 +1,9 @@
+Flowpack:
+  JobQueue:
+    Common:
+      queues:
+        'punktde-nodereplicator-replication':
+          className: 'Flowpack\JobQueue\Common\Queue\FakeQueue'
+          executeIsolated: false
+          options:
+            async: true

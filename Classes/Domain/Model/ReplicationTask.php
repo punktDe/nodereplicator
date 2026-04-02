@@ -8,81 +8,26 @@ namespace PunktDe\NodeReplicator\Domain\Model;
  *  All rights reserved.
  */
 
-use Neos\Flow\Annotations as Flow;
-use Doctrine\ORM\Mapping as ORM;
-
-#[Flow\Entity]
-class ReplicationTask
+/**
+ * Serializable task payload for node replication (queued via Flowpack JobQueue).
+ */
+final class ReplicationTask
 {
     public const EVENT_TYPE_CREATE = 'create';
     public const EVENT_TYPE_UPDATE = 'update';
     public const EVENT_TYPE_REMOVE = 'remove';
 
-    /**
-     * @var string
-     */
-    protected string $nodeAggregateId;
-
-    /**
-     * @var string
-     */
-    protected string $workspaceName;
-
-    /**
-     * @var string
-     */
-    protected string $contentRepositoryId;
-
-    /**
-     * @var string JSON-encoded OriginDimensionSpacePoint
-     */
-    protected string $originDimensionSpacePoint;
-
-    /**
-     * @var string
-     */
-    protected string $eventType;
-
-    /**
-     * @var string|null
-     * @ORM\Column(nullable=true)
-     */
-    protected ?string $propertyName = null;
-
-    /**
-     * @var string|null JSON-encoded property value for update events (legacy rows may still use PHP serialize)
-     * @ORM\Column(type="text", nullable=true)
-     */
-    protected ?string $propertyValue = null;
-
-    /**
-     * @var bool
-     * @ORM\Column(type="boolean", options={"default": false})
-     */
-    protected bool $updateEmptyOnly = false;
-
-    /**
-     * @var bool For create events: create as hidden
-     * @ORM\Column(type="boolean", options={"default": false})
-     */
-    protected bool $createHidden = false;
-
-    /**
-     * @var \DateTime|null
-     * @ORM\Column(nullable=true)
-     */
-    protected ?\DateTime $processedAt = null;
-
-    /**
-     * @var \DateTime
-     * @ORM\Column(type="datetime", nullable=false)
-     */
-    protected \DateTime $createdAt;
-
-    public function __construct(string $contentRepositoryId)
-    {
-        $this->createdAt = new \DateTime();
-        $this->contentRepositoryId = $contentRepositoryId;
+    public function __construct(
+        private readonly string $contentRepositoryId,
+        private readonly string $nodeAggregateId,
+        private readonly string $workspaceName,
+        private readonly string $originDimensionSpacePoint,
+        private readonly string $eventType,
+        private readonly ?string $propertyName = null,
+        private readonly ?string $propertyValue = null,
+        private readonly bool $updateEmptyOnly = false,
+        private readonly bool $createHidden = false,
+    ) {
     }
 
     public function getNodeAggregateId(): string
@@ -90,19 +35,9 @@ class ReplicationTask
         return $this->nodeAggregateId;
     }
 
-    public function setNodeAggregateId(string $nodeAggregateId): void
-    {
-        $this->nodeAggregateId = $nodeAggregateId;
-    }
-
     public function getWorkspaceName(): string
     {
         return $this->workspaceName;
-    }
-
-    public function setWorkspaceName(string $workspaceName): void
-    {
-        $this->workspaceName = $workspaceName;
     }
 
     public function getContentRepositoryId(): string
@@ -110,19 +45,9 @@ class ReplicationTask
         return $this->contentRepositoryId;
     }
 
-    public function setContentRepositoryId(string $contentRepositoryId): void
-    {
-        $this->contentRepositoryId = $contentRepositoryId;
-    }
-
     public function getOriginDimensionSpacePoint(): string
     {
         return $this->originDimensionSpacePoint;
-    }
-
-    public function setOriginDimensionSpacePoint(string $originDimensionSpacePoint): void
-    {
-        $this->originDimensionSpacePoint = $originDimensionSpacePoint;
     }
 
     public function getEventType(): string
@@ -130,19 +55,9 @@ class ReplicationTask
         return $this->eventType;
     }
 
-    public function setEventType(string $eventType): void
-    {
-        $this->eventType = $eventType;
-    }
-
     public function getPropertyName(): ?string
     {
         return $this->propertyName;
-    }
-
-    public function setPropertyName(?string $propertyName): void
-    {
-        $this->propertyName = $propertyName;
     }
 
     public function getPropertyValue(): ?string
@@ -150,53 +65,13 @@ class ReplicationTask
         return $this->propertyValue;
     }
 
-    public function setPropertyValue(?string $propertyValue): void
-    {
-        $this->propertyValue = $propertyValue;
-    }
-
     public function isUpdateEmptyOnly(): bool
     {
         return $this->updateEmptyOnly;
     }
 
-    public function setUpdateEmptyOnly(bool $updateEmptyOnly): void
-    {
-        $this->updateEmptyOnly = $updateEmptyOnly;
-    }
-
     public function isCreateHidden(): bool
     {
         return $this->createHidden;
-    }
-
-    public function setCreateHidden(bool $createHidden): void
-    {
-        $this->createHidden = $createHidden;
-    }
-
-    public function getProcessedAt(): ?\DateTime
-    {
-        return $this->processedAt;
-    }
-
-    public function setProcessedAt(?\DateTime $processedAt): void
-    {
-        $this->processedAt = $processedAt;
-    }
-
-    public function markProcessed(): void
-    {
-        $this->processedAt = new \DateTime();
-    }
-
-    public function getCreatedAt(): \DateTime
-    {
-        return $this->createdAt;
-    }
-
-    public function isProcessed(): bool
-    {
-        return $this->processedAt !== null;
     }
 }

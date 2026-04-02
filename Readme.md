@@ -6,7 +6,7 @@ This package provides an additional option for the NodeType configuration to aut
 
 ## Requirements and Neos compatibility
 
-Neos 9 introduces the event-sourced content repository. This package integrates with that stack via a **content graph catch-up hook** (instead of the signal-based interceptor used on Neos 8 and earlier). Replication work is **queued in the database** and should be processed asynchronously, for example with a cron job or worker that runs Flow CLI commands (see below).
+Neos 9 introduces the event-sourced content repository. This package integrates with that stack via a **content graph catch-up hook** (instead of the signal-based interceptor used on Neos 8 and earlier). Replication work is submitted to **[Flowpack JobQueue](https://github.com/Flowpack/jobqueue-common)** (Doctrine in non-Development contexts, `FakeQueue` in Development). Run a **worker** in those contexts, for example via cron or a process supervisor (see below).
 
 **Node type configuration** (`options.replication` on your node types) is unchanged in spirit; only the runtime integration differs on Neos 9.
 
@@ -23,9 +23,10 @@ Use **4.x** for Neos 9 projects. Earlier versions do not support Neos 9.
 ### Neos 9: configuration and operations
 
 - **Catch-up hook**: The package registers a hook under `Neos.ContentRepositoryRegistry.contentRepositories.<id>.contentGraphProjection.catchUpHooks` (see `Configuration/Settings.yaml` for the default `default` content repository). Override or merge if you use a non-default repository id.
-- **Queue**: `PunktDe.NodeReplicator.queue.liveWorkspaceOnly` (default `true`) limits replication tasks to the live workspace when enabled.
-- **CLI**: Process pending tasks with `./flow replication:processqueue`; remove finished rows with `./flow replication:removeprocessed`.
-- **Persistence**: Neos 9 requires a **Doctrine migration** for the replication task entity (see `Migrations/` in this package); run your usual Flow migration workflow after upgrading.
+- **Job queue**: The package depends on **`flowpack/jobqueue-common`** and **`flowpack/jobqueue-doctrine`**. Default queue name: `punktde-nodereplicator-replication` (override with `PunktDe.NodeReplicator.queue.flowpackQueueName`). `Configuration/Development/Settings.yaml` switches that queue to **`FakeQueue`** with `async: true`; other contexts use **`DoctrineQueue`** (see also [jobqueue-doctrine](https://github.com/Flowpack/jobqueue-doctrine)).
+- **Filtering**: `PunktDe.NodeReplicator.queue.liveWorkspaceOnly` (default `true`) limits replication jobs to the live workspace when enabled.
+- **CLI** ([Flowpack JobQueue commands](https://github.com/Flowpack/jobqueue-common)): After deploy, initialize the Doctrine queue table with `./flow queue:setup punktde-nodereplicator-replication` (use your configured queue name if you changed it). Process jobs with `./flow flowpack.jobqueue.common:job:work punktde-nodereplicator-replication`. Inspect or maintain queues with `./flow flowpack.jobqueue.common:queue:list`, `queue:describe`, etc.
+- **Persistence**: The Flowpack Doctrine backend stores messages in its own tables; add and run migrations in your project as you normally would for JobQueue.
 
 ## The problem, this package solves
 

@@ -7,9 +7,22 @@ Neos:
             'PunktDe.NodeReplicator:NodeReplication':
               factoryObjectName: PunktDe\NodeReplicator\CatchUpHook\NodeReplicationCatchUpHookFactory
 
+Flowpack:
+  JobQueue:
+    Common:
+      queues:
+        'punktde-nodereplicator-replication':
+          className: 'Flowpack\JobQueue\Doctrine\Queue\DoctrineQueue'
+          executeIsolated: true
+          options:
+            defaultTimeout: 60
+            pollInterval: 1
+
 PunktDe:
   NodeReplicator:
     queue:
       # When true, only CR events in the live workspace enqueue replication tasks (user workspaces are ignored).
       # When false, changes in every workspace are considered.
       liveWorkspaceOnly: true
+      # Must match a key under Flowpack.JobQueue.Common.queues
+      flowpackQueueName: 'punktde-nodereplicator-replication'

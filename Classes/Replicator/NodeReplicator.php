@@ -340,7 +340,7 @@ class NodeReplicator
     }
 
     /**
-     * @param string|null $stored JSON from {@see ReplicationQueue}; legacy tasks may still be PHP-serialized
+     * @param string|null $stored JSON from the queued replication task; legacy payloads may still be PHP-serialized
      */
     private function decodeStoredPropertyValue(?string $stored): mixed
     {
@@ -349,8 +349,12 @@ class NodeReplicator
         }
         try {
             return json_decode($stored, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return unserialize($stored, ['allowed_classes' => false]);
+        } catch (\JsonException $e) {
+            $this->logger->error(
+                sprintf('Failed to JSON-decode stored property value: %s', $e->getMessage()),
+                LogEnvironment::fromMethodName(__METHOD__)
+            );
+            return null;
         }
     }
 }
