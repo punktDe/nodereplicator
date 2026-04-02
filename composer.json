@@ -4,7 +4,9 @@
     "name": "punktde/nodereplicator",
     "license": "MIT",
     "require": {
-        "neos/neos": "^5.0 || ^7.0 || ^8.0"
+        "neos/neos": "^9.0",
+        "flowpack/jobqueue-common": "^3.4",
+        "flowpack/jobqueue-doctrine": "^3.3"
     },
     "autoload": {
         "psr-4": {

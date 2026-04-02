@@ -8,8 +8,8 @@ namespace PunktDe\NodeReplicator\NodeType;
  *  All rights reserved.
  */
 
-use Neos\ContentRepository\Domain\Model\NodeType;
-use Neos\ContentRepository\NodeTypePostprocessor\NodeTypePostprocessorInterface;
+use Neos\ContentRepository\Core\NodeType\NodeType;
+use Neos\ContentRepository\Core\NodeType\NodeTypePostprocessorInterface;
 
 class NodeTypePostProcessor implements NodeTypePostprocessorInterface
 {
