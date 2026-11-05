@@ -34,6 +34,12 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
      */
     private array $pendingTasks = [];
 
+    /**
+     * A booting subscription replays history whose replication is already part of the event stream,
+     * so enqueuing it again would duplicate every replicated change.
+     */
+    private bool $isBooting = false;
+
     public function __construct(
         private readonly ContentGraphReadModelInterface $contentGraphReadModel,
         private readonly NodeTypeManager $nodeTypeManager,
@@ -47,10 +53,14 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 
     public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void
     {
+        $this->isBooting = $subscriptionStatus === SubscriptionStatus::BOOTING;
     }
 
     public function onBeforeEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void
     {
+        if ($this->isBooting) {
+            return;
+        }
         if ($eventInstance instanceof NodeAggregateWasRemoved) {
             $this->handleNodeRemovedBefore($eventInstance);
         }
@@ -58,6 +68,9 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 
     public function onAfterEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void
     {
+        if ($this->isBooting) {
+            return;
+        }
         if ($eventInstance instanceof NodeAggregateWithNodeWasCreated) {
             $this->handleNodeCreated($eventInstance);
         } elseif ($eventInstance instanceof NodePropertiesWereSet) {
