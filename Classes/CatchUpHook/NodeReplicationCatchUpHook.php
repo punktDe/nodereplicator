@@ -13,6 +13,7 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeModification\Event\NodePropertiesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemoved;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
@@ -22,6 +23,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\Flow\Log\Utility\LogEnvironment;
+use Neos\Neos\Domain\SubtreeTagging\NeosSubtreeTag;
 use PunktDe\NodeReplicator\Domain\Model\ReplicationTask;
 use PunktDe\NodeReplicator\Domain\Service\ReplicationInternalContext;
 use PunktDe\NodeReplicator\Domain\Service\ReplicationQueue;
@@ -75,6 +77,8 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
             $this->handleNodeCreated($eventInstance);
         } elseif ($eventInstance instanceof NodePropertiesWereSet) {
             $this->handleNodePropertiesSet($eventInstance);
+        } elseif ($eventInstance instanceof SubtreeWasTagged) {
+            $this->handleSubtreeTagged($eventInstance);
         }
     }
 
@@ -197,6 +201,54 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 
         $originDimensionSpacePoint = OriginDimensionSpacePoint::fromDimensionSpacePoint($firstPoint);
         $originDimensionSpacePointJson = $this->encodeOriginDimensionSpacePointJson($originDimensionSpacePoint);
+        if ($originDimensionSpacePointJson === null) {
+            return;
+        }
+        $this->pendingTasks[] = [
+            'nodeAggregateId' => $event->nodeAggregateId->value,
+            'workspaceName' => $event->workspaceName->value,
+            'originDimensionSpacePoint' => $originDimensionSpacePointJson,
+            'eventType' => ReplicationTask::EVENT_TYPE_REMOVE,
+        ];
+    }
+
+    /**
+     * Neos deletes nodes by tagging them "removed"; the hard removal follows much later via the
+     * SoftRemovalGarbageCollector, so the removal is replicated at tagging time.
+     */
+    private function handleSubtreeTagged(SubtreeWasTagged $event): void
+    {
+        if (!$event->tag->equals(NeosSubtreeTag::removed())) {
+            return;
+        }
+        if ($this->replicationInternalContext->isActive()) {
+            return;
+        }
+        if (!$this->isEventWorkspaceRelevant($event->workspaceName)) {
+            return;
+        }
+        $nodeAggregate = $this->contentGraphReadModel->getContentGraph($event->workspaceName)
+            ->findNodeAggregateById($event->nodeAggregateId);
+        if ($nodeAggregate === null) {
+            return;
+        }
+
+        $nodeType = $this->nodeTypeManager->getNodeType($nodeAggregate->nodeTypeName);
+        if ($nodeType === null || !$this->hasReplicationConfig($nodeType)) {
+            return;
+        }
+        if (!$this->nodeRemoveReplicationEnabled($nodeType)) {
+            return;
+        }
+
+        $points = $event->affectedDimensionSpacePoints->points;
+        $firstPoint = reset($points);
+        if ($firstPoint === false) {
+            return;
+        }
+        $originDimensionSpacePointJson = $this->encodeOriginDimensionSpacePointJson(
+            OriginDimensionSpacePoint::fromDimensionSpacePoint($firstPoint)
+        );
         if ($originDimensionSpacePointJson === null) {
             return;
         }
