@@ -13,6 +13,7 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeModification\Event\NodePropertiesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemoved;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
@@ -22,6 +23,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\Flow\Log\Utility\LogEnvironment;
+use Neos\Neos\Domain\SubtreeTagging\NeosSubtreeTag;
 use PunktDe\NodeReplicator\Domain\Model\ReplicationTask;
 use PunktDe\NodeReplicator\Domain\Service\ReplicationInternalContext;
 use PunktDe\NodeReplicator\Domain\Service\ReplicationQueue;
@@ -33,6 +35,12 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
      * @var array<int, array{nodeAggregateId: string, workspaceName: string, originDimensionSpacePoint: string, eventType: string, propertyName?: string|null, propertyValue?: mixed, updateEmptyOnly?: bool, createHidden?: bool}>
      */
     private array $pendingTasks = [];
+
+    /**
+     * A booting subscription replays history whose replication is already part of the event stream,
+     * so enqueuing it again would duplicate every replicated change.
+     */
+    private bool $isBooting = false;
 
     public function __construct(
         private readonly ContentGraphReadModelInterface $contentGraphReadModel,
@@ -47,10 +55,14 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 
     public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void
     {
+        $this->isBooting = $subscriptionStatus === SubscriptionStatus::BOOTING;
     }
 
     public function onBeforeEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void
     {
+        if ($this->isBooting) {
+            return;
+        }
         if ($eventInstance instanceof NodeAggregateWasRemoved) {
             $this->handleNodeRemovedBefore($eventInstance);
         }
@@ -58,10 +70,15 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 
     public function onAfterEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void
     {
+        if ($this->isBooting) {
+            return;
+        }
         if ($eventInstance instanceof NodeAggregateWithNodeWasCreated) {
             $this->handleNodeCreated($eventInstance);
         } elseif ($eventInstance instanceof NodePropertiesWereSet) {
             $this->handleNodePropertiesSet($eventInstance);
+        } elseif ($eventInstance instanceof SubtreeWasTagged) {
+            $this->handleSubtreeTagged($eventInstance);
         }
     }
 
@@ -184,6 +201,54 @@ final class NodeReplicationCatchUpHook implements CatchUpHookInterface
 
         $originDimensionSpacePoint = OriginDimensionSpacePoint::fromDimensionSpacePoint($firstPoint);
         $originDimensionSpacePointJson = $this->encodeOriginDimensionSpacePointJson($originDimensionSpacePoint);
+        if ($originDimensionSpacePointJson === null) {
+            return;
+        }
+        $this->pendingTasks[] = [
+            'nodeAggregateId' => $event->nodeAggregateId->value,
+            'workspaceName' => $event->workspaceName->value,
+            'originDimensionSpacePoint' => $originDimensionSpacePointJson,
+            'eventType' => ReplicationTask::EVENT_TYPE_REMOVE,
+        ];
+    }
+
+    /**
+     * Neos deletes nodes by tagging them "removed"; the hard removal follows much later via the
+     * SoftRemovalGarbageCollector, so the removal is replicated at tagging time.
+     */
+    private function handleSubtreeTagged(SubtreeWasTagged $event): void
+    {
+        if (!$event->tag->equals(NeosSubtreeTag::removed())) {
+            return;
+        }
+        if ($this->replicationInternalContext->isActive()) {
+            return;
+        }
+        if (!$this->isEventWorkspaceRelevant($event->workspaceName)) {
+            return;
+        }
+        $nodeAggregate = $this->contentGraphReadModel->getContentGraph($event->workspaceName)
+            ->findNodeAggregateById($event->nodeAggregateId);
+        if ($nodeAggregate === null) {
+            return;
+        }
+
+        $nodeType = $this->nodeTypeManager->getNodeType($nodeAggregate->nodeTypeName);
+        if ($nodeType === null || !$this->hasReplicationConfig($nodeType)) {
+            return;
+        }
+        if (!$this->nodeRemoveReplicationEnabled($nodeType)) {
+            return;
+        }
+
+        $points = $event->affectedDimensionSpacePoints->points;
+        $firstPoint = reset($points);
+        if ($firstPoint === false) {
+            return;
+        }
+        $originDimensionSpacePointJson = $this->encodeOriginDimensionSpacePointJson(
+            OriginDimensionSpacePoint::fromDimensionSpacePoint($firstPoint)
+        );
         if ($originDimensionSpacePointJson === null) {
             return;
         }

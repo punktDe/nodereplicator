@@ -15,6 +15,7 @@ use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperti
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Command\CreateNodeVariant;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\TagSubtree;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
@@ -25,6 +26,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Log\Utility\LogEnvironment;
+use Neos\Neos\Domain\SubtreeTagging\NeosSubtreeTag;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use PunktDe\NodeReplicator\Domain\Model\ReplicationTask;
@@ -274,23 +276,33 @@ class NodeReplicator
                 );
                 return;
             }
+            // Soft removal leaves the hard removal to Neos' garbage collector, which keeps variants that other
+            // workspaces still have pending changes in and keeps them restorable from the trash.
+            $notRemovedDimensionSpacePoints = $nodeAggregate->coveredDimensionSpacePoints->getDifference(
+                $nodeAggregate->getCoveredDimensionsTaggedBy(NeosSubtreeTag::removed(), false)
+            );
+            if ($notRemovedDimensionSpacePoints->isEmpty()) {
+                $this->logReplicationAction(
+                    $originDimensionSpacePoint,
+                    $task->getNodeAggregateId(),
+                    'Replication task remove: node is already removed in all dimensions.',
+                    LogLevel::DEBUG
+                );
+                return;
+            }
             $this->replicationInternalContext->enter();
             try {
-                $referenceOrigin = null;
-                foreach ($nodeAggregate->occupiedDimensionSpacePoints as $occupiedOrigin) {
-                    $referenceOrigin = $occupiedOrigin;
-                    break;
+                $relativeRoots = $contentRepository->getVariationGraph()->reduceSetToRelativeRoots($notRemovedDimensionSpacePoints);
+                foreach ($relativeRoots as $dimensionSpacePoint) {
+                    $contentRepository->handle(TagSubtree::create(
+                        $workspaceName,
+                        $nodeAggregateId,
+                        $dimensionSpacePoint,
+                        NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS,
+                        NeosSubtreeTag::removed()
+                    ));
+                    $this->logReplicationAction($dimensionSpacePoint, $nodeAggregateId->value, 'Node variant was soft removed (replicated delete).');
                 }
-                if ($referenceOrigin === null) {
-                    return;
-                }
-                $contentRepository->handle(RemoveNodeAggregate::create(
-                    $workspaceName,
-                    $nodeAggregateId,
-                    $referenceOrigin->toDimensionSpacePoint(),
-                    NodeVariantSelectionStrategy::STRATEGY_ALL_VARIANTS
-                ));
-                $this->logReplicationAction($referenceOrigin, $nodeAggregateId->value, 'Node aggregate fully removed (replicated delete).');
             } finally {
                 $this->replicationInternalContext->leave();
             }
